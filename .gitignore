@@ -1,0 +1,53 @@
+# --- Reverse-engineering scratch: proprietary APK binaries + decompiled output.
+# Intentionally NOT committed (large + redistributes a closed-source app).
+/apk-work/
+
+# --- OMC orchestration state ---
+/.omc/
+
+# --- Local JDK / tooling ---
+/jdks/
+
+# --- Python (Frappe backend) ---
+.DS_Store
+*.pyc
+*.py[cod]
+*.egg-info
+*.swp
+tags
+node_modules
+__pycache__
+.venv/
+
+# =====================================================================
+# Flutter / Dart (appe_app)
+# =====================================================================
+appe_app/.dart_tool/
+appe_app/.flutter-plugins
+appe_app/.flutter-plugins-dependencies
+appe_app/build/
+appe_app/**/build/
+appe_app/.pub-cache/
+appe_app/.pub/
+appe_app/pubspec.lock
+appe_app/*.iml
+appe_app/.idea/
+
+# Android
+appe_app/android/.gradle/
+appe_app/android/local.properties
+appe_app/android/key.properties
+appe_app/android/**/google-services.json
+appe_app/android/app/*.jks
+appe_app/android/.kotlin/
+appe_app/**/*.iml
+
+# iOS
+appe_app/ios/Pods/
+appe_app/ios/.symlinks/
+
+# Build artifacts / binaries
+*.apk
+*.aab
+*.so
+*.log
