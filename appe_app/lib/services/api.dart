@@ -266,6 +266,63 @@ class AppeApi {
 
   // --- Generic doc helpers ------------------------------------------------
 
+  /// `frappe.client.get` — fetch a full document.
+  Future<Map<String, dynamic>> getDoc(String doctype, String name) async {
+    final m = await _post('frappe.client.get', {
+      'doctype': doctype,
+      'name': name,
+    });
+    final data = m['data'] ?? m;
+    return data is Map<String, dynamic>
+        ? data
+        : (data is Map ? data.cast<String, dynamic>() : <String, dynamic>{});
+  }
+
+  /// Single value of a Number Card (`Number Card View` dashboard items).
+  /// Fetches the card doc, then `get_result(doc, filters=[])` → a number.
+  Future<double?> numberCardValue(String name) async {
+    final doc = await getDoc('Number Card', name);
+    final m = await _post(
+      'frappe.desk.doctype.number_card.number_card.get_result',
+      {'doc': doc, 'filters': const []},
+    );
+    final v = m['data'] ?? m['message'];
+    if (v is num) return v.toDouble();
+    return double.tryParse('$v');
+  }
+
+  /// Dashboard Chart series (`Chart View` items) →
+  /// `{ "labels": [...], "datasets": [{ "name", "values": [...] }] }`.
+  Future<Map<String, dynamic>> dashboardChart(String name) async {
+    final res = await http.get(
+      _method(
+              'frappe.desk.doctype.dashboard_chart.dashboard_chart.get')
+          .replace(queryParameters: {'chart_name': name}),
+      headers: _headers,
+    );
+    final m = _unwrap(res);
+    final data = m['data'] ?? m;
+    return data is Map<String, dynamic>
+        ? data
+        : (data is Map ? data.cast<String, dynamic>() : <String, dynamic>{});
+  }
+
+  /// Chart render type (Bar / Line / Pie / Donut / Percentage).
+  Future<String> chartType(String name) async {
+    try {
+      final m = await _post('frappe.client.get_value', {
+        'doctype': 'Dashboard Chart',
+        'filters': {'name': name},
+        'fieldname': 'type',
+      });
+      final d = m['data'] ?? m;
+      final t = (d is Map ? d['type'] : null)?.toString();
+      return (t == null || t.isEmpty) ? 'Bar' : t;
+    } catch (_) {
+      return 'Bar';
+    }
+  }
+
   /// `frappe.client.set_value` — update a single field on a document.
   Future<void> setValue(
           String doctype, String name, String field, dynamic value) =>

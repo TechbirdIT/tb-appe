@@ -5,6 +5,7 @@ import '../services/api.dart';
 import '../services/location_service.dart';
 import '../theme.dart';
 import '../widgets/attendance_card.dart';
+import '../widgets/dashboard_widgets.dart';
 import 'ai_buddy_screen.dart';
 import 'checkin_screen.dart';
 import 'leave_screen.dart';
@@ -374,7 +375,52 @@ class _DashboardScreenState extends State<DashboardScreen> {
         .where((m) => (m['active'] ?? 1) != 0)
         .toList();
     if (items.isEmpty) return const SizedBox.shrink();
-    final hideName = (s['hide_section_name'] ?? 0) != 0;
+    final view = (s['section_view'] ?? '').toString();
+
+    // Each section renders according to its server-defined section_view.
+    switch (view) {
+      case 'Number Card View':
+        return _numberCardSection(s, items);
+      case 'Chart View':
+        return _chartSection(s, items);
+      default:
+        return _gridSection(s, items); // Grid / Horizontal / Report tiles
+    }
+  }
+
+  String _refName(Map<String, dynamic> item) =>
+      (item['refrence_docname'] ??
+              item['report_name'] ??
+              item['label'] ??
+              '')
+          .toString();
+
+  Widget _sectionHeader(Map<String, dynamic> s) {
+    if ((s['hide_section_name'] ?? 0) != 0) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 18,
+            decoration: BoxDecoration(
+              color: AppColors.accent,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Text((s['section_name'] ?? '').toString(),
+              style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.foreground)),
+        ],
+      ),
+    );
+  }
+
+  Widget _gridSection(Map<String, dynamic> s, List<Map<String, dynamic>> items) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.sm),
@@ -382,27 +428,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (!hideName) ...[
-              Row(
-                children: [
-                  Container(
-                    width: 4,
-                    height: 18,
-                    decoration: BoxDecoration(
-                      color: AppColors.accent,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Text((s['section_name'] ?? '').toString(),
-                      style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.foreground)),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.lg),
-            ],
+            _sectionHeader(s),
             Wrap(
               spacing: AppSpacing.md,
               runSpacing: AppSpacing.lg,
@@ -410,6 +436,63 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Number Card View → a grid of live metric tiles.
+  Widget _numberCardSection(
+      Map<String, dynamic> s, List<Map<String, dynamic>> items) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.sm),
+      child: AppCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _sectionHeader(s),
+            LayoutBuilder(builder: (context, c) {
+              const gap = AppSpacing.md;
+              final w = (c.maxWidth - gap) / 2;
+              return Wrap(
+                spacing: gap,
+                runSpacing: gap,
+                children: [
+                  for (final it in items)
+                    SizedBox(
+                      width: w,
+                      child: NumberCardTile(
+                        name: _refName(it),
+                        label: (it['label'] ?? '').toString(),
+                      ),
+                    ),
+                ],
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Chart View → one chart card per item (each is its own AppCard).
+  Widget _chartSection(
+      Map<String, dynamic> s, List<Map<String, dynamic>> items) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader(s),
+          for (final it in items) ...[
+            ChartCard(
+              name: _refName(it),
+              label: (it['label'] ?? '').toString(),
+            ),
+            const SizedBox(height: AppSpacing.md),
+          ],
+        ],
       ),
     );
   }

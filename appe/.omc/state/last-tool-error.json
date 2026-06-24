@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"echo \\\"=== Chart + Number Card items referenced by the dashboard ===\\\"\\ncurl -s -b /tmp/appe_cj.txt 'https://deverp.staybird.in/api/method/appe.appe_api.get_dashboard_sections' -m 25 | pyt...",
+  "error": "Exit code 3\n=== Chart + Number Card items referenced by the dashboard ===\n\n## Key Metrics (Number Card View)\n   - 'Expense Total'              type='Number Card'  ref='Expense Total (₹)'\n   - \"Today's Check-ins\"          type='Number Card'  ref=\"Today's Check-ins\"\n   - 'Active Customers'           type='Number Card'  ref='Active Customers'\n   - 'Sales Orders'               type='Number Card'  ref='Sales Orders'\n   - 'Total Leads'                type='Number Card'  ref='Total Leads'\n\n## Analytics...",
+  "timestamp": "2026-06-24T09:24:19.778Z",
+  "retry_count": 2
+}
