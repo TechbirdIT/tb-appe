@@ -2,8 +2,8 @@
 # Intentionally NOT committed (large + redistributes a closed-source app).
 /apk-work/
 
-# --- OMC orchestration state ---
-/.omc/
+# --- OMC orchestration state (any level) ---
+.omc/
 
 # --- Local JDK / tooling ---
 /jdks/
