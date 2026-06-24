@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
-import '../services/location_service.dart';
-
 /// Main shell: renders the connected Frappe / ERPNext site in a full-screen
-/// in-app WebView, the way the original Appe app does. Native features
-/// (location tracking, push, scanner, biometric) wrap around this WebView.
+/// in-app WebView, the way the original Appe app does.
 class WebViewHome extends StatefulWidget {
   const WebViewHome({super.key, required this.siteUrl});
 
@@ -18,13 +15,6 @@ class WebViewHome extends StatefulWidget {
 class _WebViewHomeState extends State<WebViewHome> {
   InAppWebViewController? _controller;
   double _progress = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    // Begin background employee-location tracking once the shell is up.
-    LocationService.start();
-  }
 
   Future<bool> _onBack() async {
     if (_controller != null && await _controller!.canGoBack()) {

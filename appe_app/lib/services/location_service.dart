@@ -1,76 +1,58 @@
 import 'dart:async';
 
-import 'package:flutter_background_service/flutter_background_service.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../app_config.dart';
 import 'api.dart';
 
-/// Background employee-location tracking — Appe's headline feature.
+/// Employee-location tracking.
 ///
-/// Records the device location on [AppConfig.locationInterval] and posts a
-/// batched `locations` array to the connected Frappe site via
-/// `appe.appe_api.storelocation` (see backend `storelocation()` — the server
-/// rejects updates more frequent than 2 minutes).
+/// Records the device location every [AppConfig.locationInterval] while the app
+/// is running and posts a batched `locations` array to the connected Frappe
+/// site via `appe.appe_api.storelocation` (the server rejects updates more
+/// frequent than 2 minutes).
+///
+/// This uses an in-app timer rather than an Android foreground service: on
+/// Android 14+ a background-started location foreground-service is disallowed
+/// without granted location permission and crashes the process, so tracking is
+/// scoped to while the app is open. (A WorkManager-based background variant can
+/// be added later behind a proper permission flow.)
 class LocationService {
-  static const _channelId = 'appe_location';
+  static Timer? _timer;
 
-  static Future<void> initialize() async {
-    try {
-      // The foreground-service notification needs an existing channel, or the
-      // native service crashes on creation (Android O+ / targetSdk 34+).
-      const channel = AndroidNotificationChannel(
-        _channelId,
-        'Location tracking',
-        description: 'Keeps your work location up to date',
-        importance: Importance.low,
-      );
-      await FlutterLocalNotificationsPlugin()
-          .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
-          ?.createNotificationChannel(channel);
+  /// Kept for call-site compatibility; no setup is required now.
+  static Future<void> initialize() async {}
 
-      final service = FlutterBackgroundService();
-      await service.configure(
-        androidConfiguration: AndroidConfiguration(
-          onStart: onStart,
-          isForegroundMode: true,
-          autoStart: false,
-          notificationChannelId: _channelId,
-          initialNotificationTitle: 'Techbird Appe',
-          initialNotificationContent: 'Location tracking active',
-          foregroundServiceTypes: [AndroidForegroundType.location],
-        ),
-        iosConfiguration: IosConfiguration(
-          onForeground: onStart,
-          autoStart: false,
-        ),
-      );
-    } catch (_) {
-      // Never let location-service setup block app startup.
-    }
-  }
+  static bool get isRunning => _timer != null;
 
-  static Future<void> start() async {
-    try {
-      await FlutterBackgroundService().startService();
-    } catch (_) {}
+  static Future<bool> start() async {
+    if (!await _ensurePermission()) return false;
+    _timer?.cancel();
+    await _report(); // record once immediately
+    _timer = Timer.periodic(AppConfig.locationInterval, (_) => _report());
+    return true;
   }
 
   static Future<void> stop() async {
-    try {
-      FlutterBackgroundService().invoke('stopService');
-    } catch (_) {}
+    _timer?.cancel();
+    _timer = null;
   }
-}
 
-/// Entry point for the background isolate.
-@pragma('vm:entry-point')
-void onStart(ServiceInstance service) {
-  service.on('stopService').listen((_) => service.stopSelf());
+  static Future<bool> _ensurePermission() async {
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) return false;
+      var perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      return perm == LocationPermission.always ||
+          perm == LocationPermission.whileInUse;
+    } catch (_) {
+      return false;
+    }
+  }
 
-  Timer.periodic(AppConfig.locationInterval, (_) async {
+  static Future<void> _report() async {
     try {
       final pos = await Geolocator.getCurrentPosition();
       final api = await AppeApi.create();
@@ -80,14 +62,11 @@ void onStart(ServiceInstance service) {
           'latitude': pos.latitude,
           'longitude': pos.longitude,
           'timestamp': DateTime.now().toUtc().toIso8601String(),
-          // device_info fields mirror what the backend reads off each record.
-          'device_info': {
-            'gps_status': true,
-          },
+          'device_info': {'gps_status': true},
         }
       ]);
     } catch (_) {
       // Swallow transient errors; the next tick retries.
     }
-  });
+  }
 }

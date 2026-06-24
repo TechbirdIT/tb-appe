@@ -9,6 +9,7 @@ import '../widgets/dashboard_widgets.dart';
 import 'ai_buddy_screen.dart';
 import 'checkin_screen.dart';
 import 'leave_screen.dart';
+import 'modules_screen.dart';
 import 'notifications_screen.dart';
 import 'posts_screen.dart';
 import 'profile_screen.dart';
@@ -230,7 +231,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             ),
           ),
-          _headerIcon(Icons.search_rounded, () {}),
+          _headerIcon(Icons.grid_view_rounded,
+              () => _push(const ModulesScreen())),
           _buddyButton(),
           _notificationButton(),
         ],
@@ -328,9 +330,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Switch(
             value: _tracking,
             activeTrackColor: AppColors.success,
-            onChanged: (on) {
-              setState(() => _tracking = on);
-              on ? LocationService.start() : LocationService.stop();
+            onChanged: (on) async {
+              if (on) {
+                final started = await LocationService.start();
+                if (!mounted) return;
+                setState(() => _tracking = started);
+                if (!started) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Location permission is required')),
+                  );
+                }
+              } else {
+                await LocationService.stop();
+                if (mounted) setState(() => _tracking = false);
+              }
             },
           ),
         ],

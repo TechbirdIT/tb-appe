@@ -30,8 +30,7 @@ dependencies:
   font_awesome_flutter: ^10.8.0
 
   # --- Native features inferred from APK permissions/libs ---
-  geolocator: ^13.0.2                 # ACCESS_FINE/COARSE/BACKGROUND_LOCATION
-  flutter_background_service: ^5.1.0  # FOREGROUND_SERVICE_LOCATION (15-min tracking)
+  geolocator: ^13.0.2                 # ACCESS_FINE/COARSE_LOCATION (in-app tracking)
   local_auth: ^2.3.0                  # USE_BIOMETRIC / USE_FINGERPRINT
   mobile_scanner: ^6.0.2              # ML Kit barcode scanning (libbarhopper)
   permission_handler: ^11.3.1
