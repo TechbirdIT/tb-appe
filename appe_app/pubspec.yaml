@@ -31,6 +31,7 @@ dependencies:
 
   # --- Native features inferred from APK permissions/libs ---
   geolocator: ^13.0.2                 # ACCESS_FINE/COARSE_LOCATION (in-app tracking)
+  geolocator_android: ^4.6.0          # AndroidSettings + foreground-service stream
   local_auth: ^2.3.0                  # USE_BIOMETRIC / USE_FINGERPRINT
   mobile_scanner: ^6.0.2              # ML Kit barcode scanning (libbarhopper)
   permission_handler: ^11.3.1

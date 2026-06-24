@@ -5,6 +5,7 @@ import '../app_config.dart';
 import '../services/api.dart';
 import '../theme.dart';
 import 'dashboard_screen.dart';
+import 'employee_checkin_screen.dart';
 
 /// Native login screen replicating Appe's auth flow:
 /// user enters their site + credentials, which hit
@@ -66,9 +67,14 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _go() {
+  Future<void> _go() async {
+    final employee = await AppeApi.isEmployee();
+    if (!mounted) return;
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const DashboardScreen()),
+      MaterialPageRoute(
+        builder: (_) =>
+            employee ? const EmployeeCheckinScreen() : const DashboardScreen(),
+      ),
     );
   }
 

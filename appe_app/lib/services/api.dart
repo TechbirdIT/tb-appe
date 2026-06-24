@@ -54,6 +54,7 @@ class AppeApi {
   static const _kUser = 'appe_user';
   static const _kLoginUsr = 'appe_login_usr';
   static const _kSecurePwd = 'appe_login_pwd';
+  static const _kUserType = 'appe_user_type';
 
   bool get isAuthenticated => _token != null;
   String get site => _site;
@@ -124,7 +125,15 @@ class AppeApi {
     await prefs.setString(_kSite, site);
     await prefs.setString(_kToken, token);
     await prefs.setString(_kUser, data?['user']?.toString() ?? usr);
+    // 'employee' vs 'User' — decides whether to show the check-in screen.
+    await prefs.setString(_kUserType, (msg['type'] ?? '').toString());
     return token;
+  }
+
+  /// Whether the signed-in user is linked to an employee record.
+  static Future<bool> isEmployee() async {
+    final prefs = await SharedPreferences.getInstance();
+    return (prefs.getString(_kUserType) ?? '').toLowerCase() == 'employee';
   }
 
   // login_user never returns 401, so no recursion risk here.

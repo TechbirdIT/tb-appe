@@ -5,6 +5,7 @@ import '../services/api.dart';
 import '../services/biometric_service.dart';
 import '../theme.dart';
 import 'dashboard_screen.dart';
+import 'employee_checkin_screen.dart';
 import 'login_screen.dart';
 
 /// Launch splash — mirrors the real Appe splash: a serif "Appe" wordmark with a
@@ -49,10 +50,15 @@ class _SplashScreenState extends State<SplashScreen> {
       }
     }
     if (!mounted) return;
+    final employee = authed && await AppeApi.isEmployee();
+    if (!mounted) return;
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (_) =>
-            authed ? const DashboardScreen() : const LoginScreen(),
+        builder: (_) => !authed
+            ? const LoginScreen()
+            : employee
+                ? const EmployeeCheckinScreen()
+                : const DashboardScreen(),
       ),
     );
   }
