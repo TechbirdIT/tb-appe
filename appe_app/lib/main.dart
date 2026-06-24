@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'app_config.dart';
 import 'screens/splash_screen.dart';
 import 'services/location_service.dart';
+import 'theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,10 +19,7 @@ class AppeApp extends StatelessWidget {
     return MaterialApp(
       title: AppConfig.appName,
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1565C0)),
-        useMaterial3: true,
-      ),
+      theme: buildAppTheme(),
       home: const SplashScreen(),
     );
   }

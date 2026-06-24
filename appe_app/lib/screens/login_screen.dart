@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../app_config.dart';
 import '../services/api.dart';
+import '../theme.dart';
 import 'dashboard_screen.dart';
 
 /// Native login screen replicating Appe's auth flow:
@@ -74,80 +75,136 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(AppSpacing.xl),
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Image.asset('assets/images/logo.png',
-                    height: 88,
-                    errorBuilder: (c, e, s) =>
-                        const Icon(Icons.apps, size: 88)),
-                const SizedBox(height: 12),
+                // Brand badge
+                Center(
+                  child: Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [AppColors.primary, AppColors.secondary],
+                      ),
+                      borderRadius:
+                          BorderRadius.circular(AppSpacing.radiusLg),
+                      boxShadow: [
+                        BoxShadow(
+                            color:
+                                AppColors.primary.withValues(alpha: 0.3),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8)),
+                      ],
+                    ),
+                    alignment: Alignment.center,
+                    child: const Text('TA',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 30,
+                            fontWeight: FontWeight.w800)),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.lg),
                 const Text('Techbird Appe',
+                    textAlign: TextAlign.center,
                     style: TextStyle(
-                        fontSize: 26, fontWeight: FontWeight.bold)),
-                const Text('Frappe, anywhere you go.'),
-                const SizedBox(height: 28),
+                        fontSize: 26,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.foreground)),
+                const SizedBox(height: 4),
+                const Text('Sign in to your workspace',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: AppColors.textSecondary)),
+                const SizedBox(height: AppSpacing.xxl),
+                _label('Site URL'),
                 TextField(
                   controller: _site,
                   keyboardType: TextInputType.url,
+                  autocorrect: false,
                   decoration: const InputDecoration(
-                    labelText: 'Site URL',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.public),
+                    hintText: 'https://your-site.frappe.cloud',
+                    prefixIcon: Icon(Icons.public_rounded),
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: AppSpacing.lg),
+                _label('Email or username'),
                 TextField(
                   controller: _user,
+                  keyboardType: TextInputType.emailAddress,
+                  autocorrect: false,
+                  textInputAction: TextInputAction.next,
                   decoration: const InputDecoration(
-                    labelText: 'Email or username',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.person),
+                    hintText: 'you@company.com',
+                    prefixIcon: Icon(Icons.person_outline_rounded),
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: AppSpacing.lg),
+                _label('Password'),
                 TextField(
                   controller: _pass,
                   obscureText: _obscure,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _busy ? null : _login(),
                   decoration: InputDecoration(
-                    labelText: 'Password',
-                    border: const OutlineInputBorder(),
-                    prefixIcon: const Icon(Icons.lock),
+                    hintText: '••••••••',
+                    prefixIcon: const Icon(Icons.lock_outline_rounded),
                     suffixIcon: IconButton(
                       icon: Icon(_obscure
-                          ? Icons.visibility
-                          : Icons.visibility_off),
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined),
                       onPressed: () =>
                           setState(() => _obscure = !_obscure),
                     ),
                   ),
                 ),
                 if (_error != null) ...[
-                  const SizedBox(height: 12),
-                  Text(_error!,
-                      style: const TextStyle(color: Colors.red)),
-                ],
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: _busy ? null : _login,
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: _busy
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white))
-                          : const Text('Login'),
+                  const SizedBox(height: AppSpacing.lg),
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    decoration: BoxDecoration(
+                      color: AppColors.dangerSoft,
+                      borderRadius:
+                          BorderRadius.circular(AppSpacing.radiusSm),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error_outline_rounded,
+                            color: AppColors.danger, size: 20),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Text(_error!,
+                              style: const TextStyle(
+                                  color: AppColors.danger, fontSize: 13)),
+                        ),
+                      ],
                     ),
                   ),
+                ],
+                const SizedBox(height: AppSpacing.xl),
+                FilledButton(
+                  onPressed: _busy ? null : _login,
+                  child: _busy
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : const Text('Sign in'),
                 ),
+                const SizedBox(height: AppSpacing.lg),
+                const Text('Frappe, anywhere you go.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        color: AppColors.textMuted, fontSize: 12)),
               ],
             ),
           ),
@@ -155,4 +212,13 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
+
+  Widget _label(String text) => Padding(
+        padding: const EdgeInsets.only(bottom: 6, left: 2),
+        child: Text(text,
+            style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary)),
+      );
 }

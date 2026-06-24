@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/api.dart';
+import '../theme.dart';
 import 'dashboard_screen.dart';
 import 'login_screen.dart';
 
@@ -46,61 +47,85 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF1F2F4),
-      body: Stack(
-        children: [
-          Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Serif wordmark with faint circular logo watermark behind it.
-                SizedBox(
-                  height: 160,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Opacity(
-                        opacity: 0.06,
-                        child: Image.asset('assets/images/logo.png',
-                            width: 150,
-                            errorBuilder: (context, error, stack) =>
-                                const SizedBox.shrink()),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppColors.primary, AppColors.primaryHover],
+          ),
+        ),
+        child: Stack(
+          children: [
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0.85, end: 1),
+                    duration: const Duration(milliseconds: 600),
+                    curve: Curves.easeOutBack,
+                    builder: (context, scale, child) =>
+                        Transform.scale(scale: scale, child: child),
+                    child: Container(
+                      width: 96,
+                      height: 96,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius:
+                            BorderRadius.circular(AppSpacing.radiusLg),
+                        boxShadow: [
+                          BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.25),
+                              blurRadius: 24,
+                              offset: const Offset(0, 10)),
+                        ],
                       ),
-                      const Text(
-                        'Techbird Appe',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontFamily: 'serif',
-                          fontSize: 40,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1B2440),
-                        ),
-                      ),
-                    ],
+                      alignment: Alignment.center,
+                      child: const Text('TA',
+                          style: TextStyle(
+                              color: AppColors.primary,
+                              fontSize: 38,
+                              fontWeight: FontWeight.w800)),
+                    ),
                   ),
+                  const SizedBox(height: AppSpacing.xl),
+                  const Text('Techbird Appe',
+                      style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white)),
+                  const SizedBox(height: 6),
+                  const Text('Frappe, anywhere you go.',
+                      style: TextStyle(color: Colors.white60)),
+                ],
+              ),
+            ),
+            const Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: EdgeInsets.only(bottom: 40),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2.4, color: Colors.white70),
+                    ),
+                    SizedBox(height: AppSpacing.lg),
+                    Text('by appetech.io',
+                        style: TextStyle(
+                            color: Colors.white38,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12)),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                const Text('Loading...',
-                    style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black54)),
-                const SizedBox(height: 6),
-                const Text('Please wait while we fetch your data',
-                    style: TextStyle(color: Colors.black38)),
-              ],
+              ),
             ),
-          ),
-          const Align(
-            alignment: Alignment.bottomCenter,
-            child: Padding(
-              padding: EdgeInsets.only(bottom: 28),
-              child: Text('by appetech.io',
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold, color: Colors.black87)),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
