@@ -278,6 +278,24 @@ class AppeApi {
         : (data is Map ? data.cast<String, dynamic>() : <String, dynamic>{});
   }
 
+  /// Runs a Frappe report via `query_report.run` (token-authed) →
+  /// `{ "columns": [...], "result": [...] }`. No browser session needed.
+  Future<Map<String, dynamic>> runReport(String reportName,
+      {Map<String, dynamic> filters = const {}}) async {
+    final res = await http.get(
+      _method('frappe.desk.query_report.run').replace(queryParameters: {
+        'report_name': reportName,
+        'filters': jsonEncode(filters),
+      }),
+      headers: _headers,
+    );
+    final m = _unwrap(res);
+    final data = m['data'] ?? m;
+    return data is Map<String, dynamic>
+        ? data
+        : (data is Map ? data.cast<String, dynamic>() : <String, dynamic>{});
+  }
+
   /// Single value of a Number Card (`Number Card View` dashboard items).
   /// Fetches the card doc, then `get_result(doc, filters=[])` → a number.
   Future<double?> numberCardValue(String name) async {

@@ -4,8 +4,10 @@ import '../services/api.dart';
 import '../theme.dart';
 import '../widgets/dashboard_widgets.dart';
 import 'checkin_screen.dart';
+import 'doctype_list_screen.dart';
 import 'leave_screen.dart';
 import 'posts_screen.dart';
+import 'report_screen.dart';
 import 'webview_home.dart';
 
 /// Modules — server-driven from `appe.appe_api.get_module_data`
@@ -100,19 +102,20 @@ class _ModulesScreenState extends State<ModulesScreen> {
     final site = _api?.site ?? '';
     final webUrl = (it['web_url'] ?? '').toString();
     final report = (it['report_name'] ?? '').toString();
-    String? url;
-    if (webUrl.isNotEmpty) {
-      url = webUrl.startsWith('http') ? webUrl : '$site$webUrl';
-    } else if (report.isNotEmpty) {
-      url = '$site/app/query-report/${Uri.encodeComponent(report)}';
-    } else if (doctype.isNotEmpty) {
-      url = '$site/app/${doctype.toLowerCase().replaceAll(' ', '-')}';
+    final display = (it['label'] ?? '').toString();
+    // Render natively (token-authed) rather than the Frappe Desk WebView.
+    if (report.isNotEmpty) {
+      return _push(ReportScreen(reportName: report, title: display));
     }
-    if (url != null) {
-      _push(WebViewHome(siteUrl: url));
+    if (doctype.isNotEmpty) {
+      return _push(DoctypeListScreen(doctype: doctype, title: display));
+    }
+    if (webUrl.isNotEmpty) {
+      _push(WebViewHome(
+          siteUrl: webUrl.startsWith('http') ? webUrl : '$site$webUrl'));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text((it['label'] ?? 'Item').toString())),
+        SnackBar(content: Text(display.isEmpty ? 'Item' : display)),
       );
     }
   }
