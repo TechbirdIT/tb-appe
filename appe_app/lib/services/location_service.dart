@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../app_config.dart';
@@ -13,28 +14,55 @@ import 'api.dart';
 /// `appe.appe_api.storelocation` (see backend `storelocation()` — the server
 /// rejects updates more frequent than 2 minutes).
 class LocationService {
+  static const _channelId = 'appe_location';
+
   static Future<void> initialize() async {
-    final service = FlutterBackgroundService();
-    await service.configure(
-      androidConfiguration: AndroidConfiguration(
-        onStart: onStart,
-        isForegroundMode: true,
-        autoStart: false,
-        notificationChannelId: 'appe_location',
-        initialNotificationTitle: 'Techbird Appe',
-        initialNotificationContent: 'Location tracking active',
-      ),
-      iosConfiguration: IosConfiguration(
-        onForeground: onStart,
-        autoStart: false,
-      ),
-    );
+    try {
+      // The foreground-service notification needs an existing channel, or the
+      // native service crashes on creation (Android O+ / targetSdk 34+).
+      const channel = AndroidNotificationChannel(
+        _channelId,
+        'Location tracking',
+        description: 'Keeps your work location up to date',
+        importance: Importance.low,
+      );
+      await FlutterLocalNotificationsPlugin()
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.createNotificationChannel(channel);
+
+      final service = FlutterBackgroundService();
+      await service.configure(
+        androidConfiguration: AndroidConfiguration(
+          onStart: onStart,
+          isForegroundMode: true,
+          autoStart: false,
+          notificationChannelId: _channelId,
+          initialNotificationTitle: 'Techbird Appe',
+          initialNotificationContent: 'Location tracking active',
+          foregroundServiceTypes: [AndroidForegroundType.location],
+        ),
+        iosConfiguration: IosConfiguration(
+          onForeground: onStart,
+          autoStart: false,
+        ),
+      );
+    } catch (_) {
+      // Never let location-service setup block app startup.
+    }
   }
 
-  static Future<void> start() => FlutterBackgroundService().startService();
+  static Future<void> start() async {
+    try {
+      await FlutterBackgroundService().startService();
+    } catch (_) {}
+  }
 
-  static Future<void> stop() async =>
+  static Future<void> stop() async {
+    try {
       FlutterBackgroundService().invoke('stopService');
+    } catch (_) {}
+  }
 }
 
 /// Entry point for the background isolate.

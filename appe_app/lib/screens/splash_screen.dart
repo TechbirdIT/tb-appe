@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/api.dart';
+import '../services/biometric_service.dart';
 import '../theme.dart';
 import 'dashboard_screen.dart';
 import 'login_screen.dart';
@@ -18,6 +19,8 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  bool _locked = false;
+
   @override
   void initState() {
     super.initState();
@@ -35,6 +38,16 @@ class _SplashScreenState extends State<SplashScreen> {
       authed = (await AppeApi.tryAutoLogin()) != null || hasToken;
     }
     await dwell; // keep the splash visible briefly, like the real app
+    if (!mounted) return;
+
+    // Biometric gate: when enabled, require a successful unlock before the app.
+    if (authed && await BiometricService.isEnabled()) {
+      final ok = await BiometricService.authenticate();
+      if (!ok) {
+        if (mounted) setState(() => _locked = true);
+        return;
+      }
+    }
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
@@ -101,21 +114,35 @@ class _SplashScreenState extends State<SplashScreen> {
                 ],
               ),
             ),
-            const Align(
+            Align(
               alignment: Alignment.bottomCenter,
               child: Padding(
                 padding: EdgeInsets.only(bottom: 40),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2.4, color: Colors.white70),
-                    ),
-                    SizedBox(height: AppSpacing.lg),
-                    Text('by appetech.io',
+                    if (_locked)
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          side: const BorderSide(color: Colors.white54),
+                        ),
+                        onPressed: () {
+                          setState(() => _locked = false);
+                          _decide();
+                        },
+                        icon: const Icon(Icons.fingerprint_rounded),
+                        label: const Text('Unlock'),
+                      )
+                    else
+                      const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2.4, color: Colors.white70),
+                      ),
+                    const SizedBox(height: AppSpacing.lg),
+                    const Text('by appetech.io',
                         style: TextStyle(
                             color: Colors.white38,
                             fontWeight: FontWeight.w600,

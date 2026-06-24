@@ -279,6 +279,15 @@ class AppeApi {
   Future<void> markNotificationRead(String name) =>
       setValue('Notification Log', name, 'read', 1);
 
+  /// Change the signed-in user's password via Frappe's standard
+  /// `update_password` (validates [oldPassword] before applying [newPassword]).
+  Future<void> changePassword(String oldPassword, String newPassword) =>
+      _post('frappe.core.doctype.user.user.update_password', {
+        'old_password': oldPassword,
+        'new_password': newPassword,
+        'logout_all_sessions': 0,
+      });
+
   // --- Dashboard / modules ------------------------------------------------
 
   Future<dynamic> dashboardSections() async =>

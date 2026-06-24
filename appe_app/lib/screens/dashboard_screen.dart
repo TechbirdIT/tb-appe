@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../services/api.dart';
 import '../services/location_service.dart';
 import '../theme.dart';
+import '../widgets/attendance_card.dart';
 import 'ai_buddy_screen.dart';
 import 'checkin_screen.dart';
 import 'leave_screen.dart';
@@ -144,6 +145,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               _header(),
               const SizedBox(height: AppSpacing.lg),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                child: AttendanceCard(),
+              ),
+              const SizedBox(height: AppSpacing.md),
               Padding(
                 padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.lg),
