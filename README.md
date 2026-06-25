@@ -1,59 +1,64 @@
-# Techbird Appe
+# TB Appe
 
-A Frappe/ERPNext mobile stack: the **Frappe backend app** plus a **Flutter mobile client** (Techbird Appe), built as a working, editable rebuild of the Appe mobile experience.
+TB Appe is TechBird's Frappe/ERPNext mobile companion backend app. It exposes the
+mobile REST API, the supporting DocTypes, and the **Appe Buddy** AI assistant that
+power the TB Appe mobile client — letting your team manage business operations on
+the go: check-ins, attendance, expenses, leads, posts, notifications, and more.
 
-## Repository layout
+> The companion **Flutter mobile app** lives in a separate repository,
+> [`tb-appe-mobile`](../tb-appe-mobile). This repository contains only the
+> Frappe/ERPNext backend app (`tb_appe`).
 
-| Path | What it is |
-|------|------------|
-| `appe/` | The **Frappe backend app** (server-side). Installs into a Frappe/ERPNext site via `bench get-app` / `bench install-app appe`. Provides the mobile REST API (`appe_api.py`, `appe_shop_api.py`), the doctypes, and the "Appe Buddy" AI assistant (`ai/`). MIT licensed — see `license.txt`. |
-| `appe_app/` | The **Flutter mobile client** — open this in Android Studio (with the Flutter + Dart plugins) or VS Code. This is the editable app. |
+## Requirements
 
-> Reverse-engineering scratch (pulled APKs, decompiled output) is intentionally **not** committed — see `.gitignore`.
+- Frappe Framework v15 or v16 (this app is v16 compatible)
+- A working [Frappe Bench](https://github.com/frappe/bench) environment
+- Python 3.10+
+- ERPNext is optional — Appe Buddy auto-loads ERPNext-specific AI tools when ERPNext
+  is installed on the site, but the core app does not require it.
 
-## The mobile client (`appe_app/`)
+## Installation
 
-A Flutter app that talks to a Frappe site running the `appe` backend. Built screen-by-screen against the real API contract.
-
-**Implemented screens / features**
-- **Splash** → silent auto-login from saved credentials
-- **Login** — `login_user` token auth, with stored site + email
-- **Dashboard** — server-driven sections (`get_dashboard_sections`) rendered as monogram tiles
-- **Check-in / out** — `employee_checkin(_status)` with GPS
-- **Leave balance** — `leave_balance`
-- **Posts feed** — `get_appe_posts`
-- **Notifications** — Unread / Read / All tabs over `Notification Log`, with detail view + mark-as-read
-- **Profile** — `user_details`, with sign-out
-- **Appe Buddy** AI chat — `appe.ai.api.*`
-- **Background location tracking** — 15-minute foreground service posting to `storelocation`
-- **ERP fallback** — any unbuilt screen opens in an in-app WebView
-
-**Resilience**
-- The API token is rotated by the backend on every login; the client **silently re-authenticates** with securely-stored credentials and retries, so a stale token never bounces you to the login screen.
-- Auth/permission failures surface as clean messages, not raw server tracebacks.
-
-See `appe_app/REPLICA_NOTES.md` and `appe_app/lib/API_CONTRACT.md` for the full build notes and the recovered API contract.
-
-## Running the mobile client
+From your bench directory:
 
 ```bash
-cd appe_app
-flutter pub get
-flutter run            # on a connected device/emulator
-# or
-flutter build apk --debug
+# 1. Fetch the app into your bench
+bench get-app <repo-url>
+
+# 2. Install it on your site
+bench --site your-site.localhost install-app tb_appe
 ```
 
-App id `com.kameshkumar.appe.replica`, so it installs alongside the original app without conflict.
-
-## Running the backend
+After installation, build and clear cache if needed:
 
 ```bash
-cd $PATH_TO_YOUR_BENCH
-bench get-app /path/to/appe        # or the git URL
-bench --site your-site install-app appe
+bench build --app tb_appe
+bench --site your-site.localhost clear-cache
 ```
+
+## What's included
+
+- **Mobile REST API** (`appe_api.py`, `appe_shop_api.py`) — login, dashboard
+  sections, check-in/out, leave balance, posts feed, notifications, profile, and
+  location tracking endpoints consumed by the mobile client.
+- **DocTypes & Workspace** — the data model and Desk workspace for the mobile app
+  (attendance, customers, employees, expenses, reports, etc.).
+- **Appe Buddy** (`ai/`) — an AI assistant baked into the app that can read data,
+  write documents, and build artifacts (DocTypes, Reports, Dashboard Charts, Number
+  Cards, Dashboards) on behalf of the logged-in user, always respecting Frappe
+  permissions. See [`tb_appe/ai/README.md`](tb_appe/ai/README.md).
+
+## Configuration
+
+- Configure the AI assistant under **Appe Buddy Settings** (provider, model, and
+  capability flags).
+- Other app behaviour is managed via **Appe Settings**.
 
 ## License
 
-The backend (`appe/`) is MIT — see `license.txt`. The Flutter client in `appe_app/` is original work in this repository.
+MIT — see [`license.txt`](license.txt).
+
+## About
+
+Built and maintained by **TechbirdIT**. For questions, contact
+`ekansh.jain@techbirdit.in`.

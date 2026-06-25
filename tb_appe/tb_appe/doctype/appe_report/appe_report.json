@@ -1,0 +1,126 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:report_name",
+ "creation": "2025-07-02 21:36:20.382386",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "appe_api_integration",
+  "third_party_report_name",
+  "report",
+  "report_name",
+  "orientation",
+  "column_break_pywq",
+  "disabled",
+  "print_format",
+  "description",
+  "section_break_lyus",
+  "filters",
+  "column"
+ ],
+ "fields": [
+  {
+   "depends_on": "eval:!doc.appe_api_integration",
+   "fieldname": "report",
+   "fieldtype": "Link",
+   "label": "Report",
+   "mandatory_depends_on": "eval:!doc.appe_api_integration",
+   "options": "Report"
+  },
+  {
+   "fieldname": "report_name",
+   "fieldtype": "Data",
+   "label": "Report Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "filters",
+   "fieldtype": "Table",
+   "label": "Filters",
+   "options": "DocField",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "disabled",
+   "fieldtype": "Check",
+   "label": "Disabled"
+  },
+  {
+   "fieldname": "print_format",
+   "fieldtype": "Link",
+   "label": "Print Format",
+   "link_filters": "[[\"Report\",\"doc_type\",\"=\",\"Appe Prepared Report\"]]",
+   "options": "Print Format",
+   "reqd": 1
+  },
+  {
+   "fieldname": "orientation",
+   "fieldtype": "Select",
+   "label": "Orientation",
+   "options": "\nPortrait\nLandscape",
+   "reqd": 1
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "in_list_view": 1,
+   "label": "Description"
+  },
+  {
+   "fieldname": "appe_api_integration",
+   "fieldtype": "Link",
+   "label": "Appe Api Integration",
+   "link_filters": "[[\"Appe API Integration\",\"is_report_api\",\"=\",1]]",
+   "options": "Appe API Integration"
+  },
+  {
+   "fieldname": "third_party_report_name",
+   "fieldtype": "Autocomplete",
+   "label": "Third Party Report Name"
+  },
+  {
+   "fieldname": "column_break_pywq",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_lyus",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "column",
+   "fieldtype": "Table",
+   "label": "Column",
+   "options": "Appe Report Column"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-06-14 09:25:38.391756",
+ "modified_by": "Administrator",
+ "module": "TB Appe",
+ "name": "Appe Report",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
