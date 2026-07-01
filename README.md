@@ -41,6 +41,14 @@ bench --site your-site.localhost clear-cache
 - **Mobile REST API** (`appe_api.py`, `appe_shop_api.py`) — login, dashboard
   sections, check-in/out, leave balance, posts feed, notifications, profile, and
   location tracking endpoints consumed by the mobile client.
+- **RBAC HRMS gateway** (`api/hrms_gateway.py`, `api/rbac.py`) — a stable,
+  permission-aware surface the mobile app calls for HRMS features. `my_*` reads
+  are pinned to the caller's own employee (no over-fetching), while team,
+  approval, and directory endpoints reuse the same hierarchical scope the Desk
+  enforces. `rbac.get_me` returns a server-derived archetype plus capability
+  flags (e.g. `can_view_payroll`, `can_announce`) so the client can tailor its
+  UI without hard-coding roles. Company announcements (`announce`) are gated to
+  admin / management roles (`rbac._ANNOUNCE_ROLES`).
 - **DocTypes & Workspace** — the data model and the **Appe** Desk workspace
   (attendance, customers, employees, expenses, reports, etc.), reachable at
   [`/app/appe`](/app/appe).

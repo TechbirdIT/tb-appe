@@ -112,8 +112,26 @@ def _capabilities(roles: list[str], scope) -> dict:
         "can_view_payroll": any(
             r in roles for r in ("HR Manager", "HR User", "Accounts Manager", "Accounts User")
         ),
+        # Who may post Company Announcements — admin, GM/property management, HR,
+        # and department managers / other administerial positions.
+        "can_announce": bool(set(roles) & _ANNOUNCE_ROLES),
         "self_service": True,
     }
+
+
+# Administerial / managerial roles allowed to post Company Announcements.
+_ANNOUNCE_ROLES = {
+    "System Manager",       # Administrator
+    "Administrator",
+    "GM",
+    "Hotel Manager",        # GM / Property Manager
+    "HR Manager",
+    "HR User",
+    "Department Head",      # department managers + supervisors
+    "Accounts Manager",
+    "Sales Manager",
+    "Revenue Manager",
+}
 
 
 def build_context(user: str | None = None) -> dict:

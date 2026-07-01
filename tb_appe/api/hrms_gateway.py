@@ -372,6 +372,31 @@ def pending_approvals():
     return _ok(_my_pending_approvals())
 
 
+# ---------------------------------------------------------------------------
+# Company announcements (Appe Post) — gated to admin / management
+# ---------------------------------------------------------------------------
+@frappe.whitelist(methods=["POST"])
+def announce(title, content):
+    """Post a Company Announcement (Appe Post). Restricted to admin / GM / HR /
+    department managers (rbac._ANNOUNCE_ROLES) — unlike the legacy
+    create_appe_post, this is permission-gated."""
+    from tb_appe.api.rbac import _ANNOUNCE_ROLES
+
+    if not (set(frappe.get_roles()) & _ANNOUNCE_ROLES):
+        frappe.throw(_("You are not permitted to post announcements"), frappe.PermissionError)
+    if not (title and str(title).strip() and content and str(content).strip()):
+        return _err("Title and content are required")
+    doc = frappe.get_doc({
+        "doctype": "Appe Post",
+        "title": str(title).strip(),
+        "content": str(content).strip(),
+        "post": 1,
+    })
+    doc.insert(ignore_permissions=True)
+    frappe.db.commit()
+    return _ok({"name": doc.name})
+
+
 @frappe.whitelist()
 def directory(search=None, department=None, limit=500):
     """Every employee the caller may SEE (their scope) — distinct from `my_team`
