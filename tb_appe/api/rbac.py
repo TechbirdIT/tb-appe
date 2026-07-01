@@ -233,5 +233,16 @@ def get_me():
             "archetype": ctx["archetype"],
             "capabilities": ctx["capabilities"],
             "hotel_core": hotel_core.has_hotel_core(),
+            # Live-location tracking is an org policy (Appe Settings), NOT an
+            # employee toggle — the app only asks the employee to grant the OS
+            # permission when this is on.
+            "location_tracking": _location_tracking_enabled(),
         },
     }
+
+
+def _location_tracking_enabled() -> bool:
+    try:
+        return bool(frappe.db.get_single_value("Appe Settings", "enable_live_location_tracking"))
+    except Exception:
+        return False
