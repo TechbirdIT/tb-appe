@@ -19,6 +19,7 @@ Two invariants:
 import json
 
 import frappe
+from frappe import _
 
 from tb_appe.integrations import hotel_core
 
@@ -420,5 +421,70 @@ def member_detail(employee):
             "leave_balance": _self_leave_balance(employee),
             "attendance": attendance,
             "pending_leaves": pending_leaves,
+        }
+    )
+
+
+def _haversine_km(a, b):
+    from math import asin, cos, radians, sin, sqrt
+
+    r = 6371.0
+    dlat = radians(b["lat"] - a["lat"])
+    dlon = radians(b["lng"] - a["lng"])
+    h = sin(dlat / 2) ** 2 + cos(radians(a["lat"])) * cos(radians(b["lat"])) * sin(dlon / 2) ** 2
+    return 2 * r * asin(sqrt(h))
+
+
+@frappe.whitelist()
+def employee_route(employee=None, date=None):
+    """Location trail for a day, built from raw Employee Location points (no
+    dependency on the aggregated route summary). Defaults to the caller; viewing
+    another employee is scope-checked."""
+    me = _require_employee()
+    emp = employee or me
+    if not emp:
+        return _err("No employee record found for your user account")
+    if employee and employee != me:
+        _require_scope_member(employee)
+
+    day = date or frappe.utils.today()
+    rows = frappe.get_all(
+        "Employee Location",
+        filters={"employee": emp, "timestamp": ["between", [f"{day} 00:00:00", f"{day} 23:59:59"]]},
+        fields=["latitude", "longitude", "timestamp"],
+        order_by="timestamp asc",
+        ignore_permissions=True,
+    )
+    pts = [
+        {"lat": frappe.utils.flt(r.latitude), "lng": frappe.utils.flt(r.longitude), "time": str(r.timestamp)}
+        for r in rows
+        if r.latitude and r.longitude
+    ]
+    dist = sum(_haversine_km(pts[i - 1], pts[i]) for i in range(1, len(pts)))
+    emp_row = frappe.db.get_value("Employee", emp, ["employee_name", "designation"], as_dict=True) or {}
+
+    # Reverse-geocode just the start + end (cached; OSM/Nominatim) so the map
+    # can label where the day began and ended without geocoding every point.
+    start_address = end_address = None
+    if pts:
+        from tb_appe.api.geocode import reverse_geocode
+
+        start_address = reverse_geocode(pts[0]["lat"], pts[0]["lng"])
+        if len(pts) > 1:
+            end_address = reverse_geocode(pts[-1]["lat"], pts[-1]["lng"])
+        pts[0]["address"] = start_address
+        if len(pts) > 1:
+            pts[-1]["address"] = end_address
+
+    return _ok(
+        {
+            "employee": emp,
+            "employee_name": emp_row.get("employee_name"),
+            "date": str(day),
+            "points": pts,
+            "count": len(pts),
+            "distance_km": round(dist, 2),
+            "start_address": start_address,
+            "end_address": end_address,
         }
     )
