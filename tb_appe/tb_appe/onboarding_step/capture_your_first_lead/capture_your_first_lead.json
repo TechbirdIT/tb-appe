@@ -1,0 +1,21 @@
+{
+ "action": "Create Entry",
+ "action_label": "New Lead",
+ "creation": "2026-06-30 00:00:00.000000",
+ "description": "Log a mobile **lead** to see how the sales-capture flow feels for reps on the road.",
+ "docstatus": 0,
+ "doctype": "Onboarding Step",
+ "idx": 0,
+ "is_complete": 0,
+ "is_single": 0,
+ "is_skipped": 0,
+ "modified": "2026-06-30 00:00:00.000000",
+ "modified_by": "Administrator",
+ "name": "Capture Your First Lead",
+ "owner": "Administrator",
+ "reference_document": "mlead",
+ "show_form_tour": 0,
+ "show_full_form": 0,
+ "title": "Capture Your First Lead",
+ "validate_action": 1
+}

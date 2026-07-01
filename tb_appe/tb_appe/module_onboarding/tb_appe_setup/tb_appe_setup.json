@@ -13,17 +13,56 @@
  "documentation_url": "https://techbirdit.in",
  "idx": 0,
  "is_complete": 0,
- "modified": "2025-08-13 05:49:11.875312",
+ "modified": "2026-06-30 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "TB Appe",
  "name": "TB Appe Setup",
  "owner": "Administrator",
  "steps": [
   {
+   "step": "Configure Appe Settings"
+  },
+  {
    "step": "Add Employee"
+  },
+  {
+   "step": "Set Up Daily Activity Types"
+  },
+  {
+   "step": "Set Up Expense Types"
+  },
+  {
+   "step": "Configure Mobile App Dashboard"
+  },
+  {
+   "step": "Configure Mobile App Modules"
+  },
+  {
+   "step": "Design Mobile Screens"
+  },
+  {
+   "step": "Add a Customer"
+  },
+  {
+   "step": "Capture Your First Lead"
+  },
+  {
+   "step": "Publish Your First Post"
+  },
+  {
+   "step": "Configure Push Notifications"
+  },
+  {
+   "step": "Configure Appe Buddy (AI)"
+  },
+  {
+   "step": "Open Appe Buddy"
+  },
+  {
+   "step": "View Employee Tracking"
   }
  ],
- "subtitle": "Tutorial for mobile app setup",
- "success_message": "Employee Created",
+ "subtitle": "Set up attendance, tracking, expenses, CRM, the mobile UI, notifications and the Appe Buddy AI assistant.",
+ "success_message": "TB Appe is ready — your mobile backend is set up!",
  "title": "TB Appe Setup"
 }

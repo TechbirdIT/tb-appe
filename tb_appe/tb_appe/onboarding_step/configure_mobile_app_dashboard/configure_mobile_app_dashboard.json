@@ -1,0 +1,21 @@
+{
+ "action": "Create Entry",
+ "action_label": "New Dashboard",
+ "creation": "2026-06-30 00:00:00.000000",
+ "description": "Build the **home dashboard** the mobile app shows after login \u2014 sections of cards/widgets that link to modules, reports and key actions.",
+ "docstatus": 0,
+ "doctype": "Onboarding Step",
+ "idx": 0,
+ "is_complete": 0,
+ "is_single": 0,
+ "is_skipped": 0,
+ "modified": "2026-06-30 00:00:00.000000",
+ "modified_by": "Administrator",
+ "name": "Configure Mobile App Dashboard",
+ "owner": "Administrator",
+ "reference_document": "Mobile App Dashboard",
+ "show_form_tour": 0,
+ "show_full_form": 0,
+ "title": "Configure Mobile App Dashboard",
+ "validate_action": 1
+}

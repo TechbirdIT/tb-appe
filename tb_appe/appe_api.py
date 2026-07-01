@@ -253,6 +253,7 @@ def login_user(usr, pwd):
         }
         return
     user_email = ""
+    userm = None  # unset when the email/username matches no enabled user
     user_exist = frappe.db.count("User",{'email': usr,'enabled':1})
     if user_exist > 0:
         userm = frappe.db.get_all('User', filters={'email': usr,'enabled':1}, fields=['name','email','username','full_name','user_image','mobile_no','location','gender','language','time_zone','enabled','user_type'])
@@ -399,13 +400,20 @@ def verifyOTP(usr, pwd):
 @frappe.whitelist()
 def storelocation():
     try:
-        frappe.log_error("location",frappe.form_dict)
         locations = frappe.form_dict.get('locations') or []
+        # The mobile client form-encodes `locations` as a JSON string; parse it
+        # back to a list so we iterate dicts, not characters.
+        if isinstance(locations, str):
+            locations = json.loads(locations or "[]")
 
         for loc in locations:
+            if isinstance(loc, str):
+                loc = json.loads(loc)
             latitude = loc.get('latitude')
             longitude = loc.get('longitude')
             device_info = loc.get('device_info') or {}
+            if isinstance(device_info, str):
+                device_info = json.loads(device_info)
             timestamp = loc.get('timestamp')
 
             # latitude = frappe.form_dict.get('latitude')
@@ -462,7 +470,7 @@ def storelocation():
                     "user": user,
                     "timestamp": current_timestamp
                 })
-                location_doc.insert()
+                location_doc.insert(ignore_permissions=True)
                 frappe.db.commit()
 
                 frappe.response.message = {
@@ -585,12 +593,16 @@ def gettasks_and_request_and_attendancedata():
 @frappe.whitelist()
 def get_module_data():
     try:
+        from tb_appe.api import rbac
+        ctx = rbac.build_context()
         app_modules = frappe.db.get_all('Mobile App Module', fields=['*'], order_by="sequence_id asc")
         results = []
         for module in app_modules:
+            if not rbac.is_visible(module, ctx):
+                continue
             module_items = frappe.get_all('Mobile App Module Items', filters={'parent': module.name, 'active':1}, fields=['*'])
             results.append({'module_name': module.get('module_name'),'image': module.get('image'),'items': module_items})
-        frappe.response.message={'status':True,'message':'','data':results}
+        frappe.response.message={'status':True,'message':'','archetype':ctx['archetype'],'data':results}
         return
     except Exception as e:
         frappe.response.message={
@@ -602,12 +614,16 @@ def get_module_data():
 @frappe.whitelist()
 def get_dashboard_sections():
     try:
+        from tb_appe.api import rbac
+        ctx = rbac.build_context()
         app_sections = frappe.db.get_all('Mobile App Dashboard', filters={'status':'Active'}, fields=['*'], order_by="sequence_id asc")
         results = []
         for section in app_sections:
+            if not rbac.is_visible(section, ctx):
+                continue
             section_items = frappe.get_all('Mobile App Dashboard Items', filters={'parent': section.name}, fields=['*'])
             results.append({'section_view': section.get('section_view'),'hide_section_name': section.get('hide_section_name'),'section_name': section.get('section_name'),'image': section.get('image'),'items': section_items})
-        frappe.response.message={'status':True,'message':'','data':results}
+        frappe.response.message={'status':True,'message':'','archetype':ctx['archetype'],'data':results}
         return
     except Exception as e:
         frappe.response.message={

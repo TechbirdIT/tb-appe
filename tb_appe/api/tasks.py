@@ -133,7 +133,7 @@ def process_employee(employee, date):
         })
 
     summary_name = frappe.db.exists(
-        "Employee Route Summary",
+        "Appe Employee Route Summary",
         {
             "employee": employee,
             "summary_date": date
@@ -142,12 +142,12 @@ def process_employee(employee, date):
 
     if summary_name:
         doc = frappe.get_doc(
-            "Employee Route Summary",
+            "Appe Employee Route Summary",
             summary_name
         )
     else:
         doc = frappe.new_doc(
-            "Employee Route Summary"
+            "Appe Employee Route Summary"
         )
 
     doc.employee = employee

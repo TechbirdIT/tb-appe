@@ -1,0 +1,21 @@
+{
+ "action": "Update Settings",
+ "action_label": "Open Appe Buddy Settings",
+ "creation": "2026-06-30 00:00:00.000000",
+ "description": "Set up the built-in AI assistant: choose a **provider** (OpenAI / Anthropic / Gemini / OpenAI-compatible), paste an **API key**, and review the **capability flags** (data read, plus building DocTypes, reports, charts & dashboards) and **allowed roles**.\n\n> Note: all build capabilities are **on by default** \u2014 restrict them to trusted roles.",
+ "docstatus": 0,
+ "doctype": "Onboarding Step",
+ "idx": 0,
+ "is_complete": 0,
+ "is_single": 1,
+ "is_skipped": 0,
+ "modified": "2026-06-30 00:00:00.000000",
+ "modified_by": "Administrator",
+ "name": "Configure Appe Buddy (AI)",
+ "owner": "Administrator",
+ "reference_document": "Appe Buddy Settings",
+ "show_form_tour": 0,
+ "show_full_form": 0,
+ "title": "Configure Appe Buddy (AI)",
+ "validate_action": 0
+}

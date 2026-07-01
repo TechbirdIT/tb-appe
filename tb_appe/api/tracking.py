@@ -5,7 +5,7 @@ import frappe
 def get_employee_tracking(employee, date):
 
     doc = frappe.get_doc(
-        "Employee Route Summary",
+        "Appe Employee Route Summary",
         {
             "employee": employee,
             "summary_date": date
@@ -21,5 +21,7 @@ def get_employee_tracking(employee, date):
         "start_time": doc.start_time,
         "end_time": doc.end_time,
         "route_geojson": doc.route_geojson,
-        "timeline_json": doc.timeline_json
+        # Renamed doctype exposes activity/timeline data as activity_geojson.
+        "timeline_json": doc.get("activity_geojson"),
+        "activity_geojson": doc.get("activity_geojson"),
     }
