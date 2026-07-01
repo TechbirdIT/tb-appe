@@ -8,7 +8,16 @@
   "module_name",
   "image",
   "items",
-  "sequence_id"
+  "sequence_id",
+  "rbac_targeting_section",
+  "all_users",
+  "show_executive",
+  "show_manager",
+  "show_supervisor",
+  "show_staff",
+  "target_role_profiles",
+  "target_roles",
+  "target_departments"
  ],
  "fields": [
   {
@@ -34,6 +43,62 @@
    "fieldname": "sequence_id",
    "fieldtype": "Int",
    "label": "sequence_id"
+  },
+  {
+   "collapsible": 1,
+   "description": "Controls which users see this module. If nothing here is set, it shows to everyone (backward compatible).",
+   "fieldname": "rbac_targeting_section",
+   "fieldtype": "Section Break",
+   "label": "RBAC Targeting"
+  },
+  {
+   "default": "0",
+   "description": "Ignore targeting and show this module to everyone.",
+   "fieldname": "all_users",
+   "fieldtype": "Check",
+   "label": "Show to All Users"
+  },
+  {
+   "default": "0",
+   "fieldname": "show_executive",
+   "fieldtype": "Check",
+   "label": "Executive"
+  },
+  {
+   "default": "0",
+   "fieldname": "show_manager",
+   "fieldtype": "Check",
+   "label": "Manager"
+  },
+  {
+   "default": "0",
+   "fieldname": "show_supervisor",
+   "fieldtype": "Check",
+   "label": "Supervisor"
+  },
+  {
+   "default": "0",
+   "fieldname": "show_staff",
+   "fieldtype": "Check",
+   "label": "Staff"
+  },
+  {
+   "description": "Optional finer targeting. Comma/newline separated Role Profile names.",
+   "fieldname": "target_role_profiles",
+   "fieldtype": "Small Text",
+   "label": "Target Role Profiles"
+  },
+  {
+   "description": "Optional. Comma/newline separated Role names.",
+   "fieldname": "target_roles",
+   "fieldtype": "Small Text",
+   "label": "Target Roles"
+  },
+  {
+   "description": "Optional. Comma/newline separated Department names.",
+   "fieldname": "target_departments",
+   "fieldtype": "Small Text",
+   "label": "Target Departments"
   }
  ],
  "index_web_pages_for_search": 1,

@@ -1,0 +1,21 @@
+{
+ "action": "Create Entry",
+ "action_label": "New Screen",
+ "creation": "2026-06-30 00:00:00.000000",
+ "description": "Define individual **Appe Screen** definitions the mobile client renders \u2014 the building blocks wired into your modules and dashboard.",
+ "docstatus": 0,
+ "doctype": "Onboarding Step",
+ "idx": 0,
+ "is_complete": 0,
+ "is_single": 0,
+ "is_skipped": 0,
+ "modified": "2026-06-30 00:00:00.000000",
+ "modified_by": "Administrator",
+ "name": "Design Mobile Screens",
+ "owner": "Administrator",
+ "reference_document": "Appe Screen",
+ "show_form_tour": 0,
+ "show_full_form": 0,
+ "title": "Design Mobile Screens",
+ "validate_action": 1
+}

@@ -1,0 +1,424 @@
+# Copyright (c) 2026, TechbirdIT and contributors
+# For license information, please see license.txt
+
+"""
+Mobile HRMS gateway
+===================
+The stable ``tb_appe.api.hrms_gateway.*`` surface the mobile app calls for all
+HRMS features. Each endpoint delegates to tb_hotel_core's scope-checked
+implementation when it's installed, and falls back to a generic
+ERPNext/HRMS implementation otherwise (see ``integrations.hotel_core``).
+
+Two invariants:
+  * "my_*" reads are always pinned to the caller's own employee, so the app
+    can't over-fetch even if it passes a different employee id.
+  * Team / approval endpoints rely on the same hierarchical scope the desk
+    enforces — they never widen access.
+"""
+
+import json
+
+import frappe
+
+from tb_appe.integrations import hotel_core
+
+HC = "tb_hotel_core.api.hrms."
+HC_MOBILE = "tb_hotel_core.api.mobile_hrms."
+
+
+def _ok(data=None, **extra):
+    out = {"status": True, "data": data}
+    out.update(extra)
+    return out
+
+
+def _err(message):
+    return {"status": False, "message": str(message)}
+
+
+def _require_employee():
+    """Session employee name, or None (callers return a clean error)."""
+    return hotel_core.get_session_employee()
+
+
+def _self_leave_balance(employee):
+    """Leave balance for the caller's OWN employee, computed self-safely.
+
+    tb_hotel_core's get_leave_balance is manager-oriented and requires Leave
+    Allocation read permission, which plain self-service staff don't hold. Since
+    ``employee`` here is always the session employee (resolved server-side, not
+    client-supplied), reading it with ignore_permissions leaks nothing.
+    """
+    today = frappe.utils.today()
+    allocations = frappe.get_all(
+        "Leave Allocation",
+        filters={
+            "employee": employee,
+            "from_date": ["<=", today],
+            "to_date": [">=", today],
+            "docstatus": 1,
+        },
+        fields=["leave_type", "total_leaves_allocated", "carry_forwarded_leaves_count", "from_date", "to_date"],
+        ignore_permissions=True,
+    )
+    result = []
+    for a in allocations:
+        allocated = frappe.utils.flt(a.get("total_leaves_allocated") or 0)
+        taken = frappe.utils.flt(
+            frappe.db.sql(
+                """SELECT COALESCE(SUM(total_leave_days), 0) FROM `tabLeave Application`
+                   WHERE employee=%s AND leave_type=%s AND status='Approved' AND docstatus=1
+                     AND from_date>=%s AND to_date<=%s""",
+                (employee, a["leave_type"], str(a["from_date"]), str(a["to_date"])),
+            )[0][0]
+        )
+        result.append(
+            {
+                "leave_type": a["leave_type"],
+                "allocated": allocated,
+                "taken": taken,
+                "carry_forwarded": frappe.utils.flt(a.get("carry_forwarded_leaves_count") or 0),
+                "balance": allocated - taken,
+            }
+        )
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Check-in / check-out
+# ---------------------------------------------------------------------------
+@frappe.whitelist()
+def checkin_status():
+    if hotel_core.has_hotel_core():
+        return _ok(hotel_core.call(HC_MOBILE + "get_checkin_status"))
+    # Fallback: reuse tb_appe's own lightweight status.
+    from tb_appe.appe_api import employee_checkin_status
+
+    return _ok(employee_checkin_status())
+
+
+@frappe.whitelist()
+def checkin(log_type=None, latitude=None, longitude=None, accuracy=None, selfie=None, property=None):
+    if hotel_core.has_hotel_core():
+        return _ok(
+            hotel_core.call(
+                HC_MOBILE + "mobile_checkin",
+                log_type=log_type,
+                latitude=latitude,
+                longitude=longitude,
+                accuracy=accuracy,
+                selfie=selfie,
+                property=property,
+            )
+        )
+    from tb_appe.appe_api import employee_checkin
+
+    return _ok(employee_checkin())
+
+
+# ---------------------------------------------------------------------------
+# Self-service reads (always scoped to the caller)
+# ---------------------------------------------------------------------------
+@frappe.whitelist()
+def my_dashboard():
+    """Consolidated self-service home for the logged-in employee."""
+    if hotel_core.has_hotel_core():
+        return _ok(hotel_core.call(HC + "get_my_dashboard"))
+    return _err("Consolidated dashboard requires tb_hotel_core")
+
+
+# NOTE: the "my_*" reads deliberately query the caller's OWN employee directly
+# with ignore_permissions rather than delegating to tb_hotel_core's
+# manager-oriented endpoints. Those endpoints gate on desk read-permission for
+# Leave Allocation / Salary Slip / Attendance, which plain self-service staff
+# ("Employee Self Service") don't hold — so delegation 403s for line staff.
+# The employee here is always resolved from the session (never client-supplied),
+# so a self-scoped read leaks nothing.
+@frappe.whitelist()
+def my_leave_balance():
+    emp = _require_employee()
+    if not emp:
+        return _err("No employee record found for your user account")
+    return _ok(_self_leave_balance(emp))
+
+
+@frappe.whitelist()
+def leave_types():
+    if hotel_core.has_hotel_core():
+        try:
+            return _ok(hotel_core.call(HC + "get_leave_types"))
+        except Exception:
+            pass
+    return _ok(frappe.get_all("Leave Type", pluck="name"))
+
+
+@frappe.whitelist()
+def my_leaves(status=None, limit=100):
+    emp = _require_employee()
+    if not emp:
+        return _err("No employee record found for your user account")
+    filters = {"employee": emp, "docstatus": ["!=", 2]}
+    if status:
+        filters["status"] = status
+    return _ok(
+        frappe.get_all(
+            "Leave Application",
+            filters=filters,
+            fields=["name", "leave_type", "from_date", "to_date", "total_leave_days", "status"],
+            order_by="from_date desc",
+            limit=limit,
+            ignore_permissions=True,
+        )
+    )
+
+
+@frappe.whitelist()
+def my_payslips(limit=24):
+    emp = _require_employee()
+    if not emp:
+        return _err("No employee record found for your user account")
+    return _ok(
+        frappe.get_all(
+            "Salary Slip",
+            filters={"employee": emp, "docstatus": 1},
+            fields=["name", "start_date", "end_date", "gross_pay", "net_pay", "total_deduction"],
+            order_by="start_date desc",
+            limit=limit,
+            ignore_permissions=True,
+        )
+    )
+
+
+@frappe.whitelist()
+def payslip_detail(salary_slip_name):
+    emp = _require_employee()
+    slip_emp = frappe.db.get_value("Salary Slip", salary_slip_name, "employee")
+    if not emp or slip_emp != emp:
+        return _err("Not permitted")
+    return _ok(frappe.get_doc("Salary Slip", salary_slip_name).as_dict())
+
+
+@frappe.whitelist()
+def my_expenses(status=None, limit=50):
+    emp = _require_employee()
+    if not emp:
+        return _err("No employee record found for your user account")
+    return _ok(
+        frappe.get_all(
+            "Expense Claim",
+            filters={"employee": emp, "docstatus": ["!=", 2]},
+            fields=["name", "posting_date", "total_claimed_amount", "total_sanctioned_amount", "approval_status"],
+            order_by="posting_date desc",
+            limit=limit,
+            ignore_permissions=True,
+        )
+    )
+
+
+@frappe.whitelist()
+def expense_types():
+    if hotel_core.has_hotel_core():
+        return _ok(hotel_core.call(HC + "get_expense_claim_types"))
+    return _ok(frappe.get_all("Expense Claim Type", pluck="name"))
+
+
+@frappe.whitelist()
+def my_attendance(limit=45):
+    """Rolling attendance history for the caller (self-scoped, most recent
+    first) — richer than a single calendar month for a mobile history view."""
+    emp = _require_employee()
+    if not emp:
+        return _err("No employee record found for your user account")
+    rows = frappe.get_all(
+        "Attendance",
+        filters={"employee": emp, "docstatus": ["<", 2]},
+        fields=["name", "attendance_date", "status", "working_hours"],
+        order_by="attendance_date desc",
+        limit=limit,
+        ignore_permissions=True,
+    )
+    summary = {"present": 0, "absent": 0, "on_leave": 0}
+    for r in rows:
+        s = (r.get("status") or "").lower()
+        if s == "present":
+            summary["present"] += 1
+        elif s == "absent":
+            summary["absent"] += 1
+        elif s in ("on leave", "half day"):
+            summary["on_leave"] += 1
+    return _ok({"records": rows, **summary})
+
+
+# ---------------------------------------------------------------------------
+# Self-service writes
+# ---------------------------------------------------------------------------
+@frappe.whitelist()
+def apply_leave(leave_type, from_date, to_date, reason=None):
+    emp = _require_employee()
+    if not emp:
+        return _err("No employee record found for your user account")
+    if hotel_core.has_hotel_core():
+        return _ok(
+            hotel_core.call(
+                HC + "create_leave_application",
+                employee=emp,
+                leave_type=leave_type,
+                from_date=from_date,
+                to_date=to_date,
+                reason=reason,
+            )
+        )
+    doc = frappe.get_doc(
+        {
+            "doctype": "Leave Application",
+            "employee": emp,
+            "leave_type": leave_type,
+            "from_date": from_date,
+            "to_date": to_date,
+            "description": reason,
+            "status": "Open",
+        }
+    ).insert()
+    return _ok({"name": doc.name})
+
+
+@frappe.whitelist()
+def create_expense(posting_date, expenses, expense_approver=None, remark=None):
+    emp = _require_employee()
+    if not emp:
+        return _err("No employee record found for your user account")
+    if isinstance(expenses, str):
+        expenses = json.loads(expenses)
+    if hotel_core.has_hotel_core():
+        return _ok(
+            hotel_core.call(
+                HC + "create_expense_claim",
+                employee=emp,
+                posting_date=posting_date,
+                expenses=expenses,
+                expense_approver=expense_approver,
+                remark=remark,
+            )
+        )
+    return _err("Expense claim creation requires tb_hotel_core on this bench")
+
+
+# ---------------------------------------------------------------------------
+# Supervisor: team + approvals
+# ---------------------------------------------------------------------------
+@frappe.whitelist()
+def my_team():
+    if hotel_core.has_hotel_core():
+        return _ok(hotel_core.call(HC_MOBILE + "get_my_team"))
+    return _err("Team view requires tb_hotel_core on this bench")
+
+
+@frappe.whitelist()
+def team_approvals():
+    if hotel_core.has_hotel_core():
+        return _ok(hotel_core.call(HC_MOBILE + "get_team_pending_approvals"))
+    return _err("Approvals require tb_hotel_core on this bench")
+
+
+@frappe.whitelist()
+def approve_leave(leave_application_name):
+    if hotel_core.has_hotel_core():
+        return _ok(hotel_core.call(HC + "approve_leave", leave_application_name=leave_application_name))
+    return _err("Approvals require tb_hotel_core on this bench")
+
+
+@frappe.whitelist()
+def reject_leave(leave_application_name, reason=None):
+    if hotel_core.has_hotel_core():
+        return _ok(hotel_core.call(HC + "reject_leave", leave_application_name=leave_application_name, reason=reason))
+    return _err("Approvals require tb_hotel_core on this bench")
+
+
+@frappe.whitelist()
+def approve_expense(expense_claim_name):
+    if hotel_core.has_hotel_core():
+        return _ok(hotel_core.call(HC + "approve_expense_claim", expense_claim_name=expense_claim_name))
+    return _err("Approvals require tb_hotel_core on this bench")
+
+
+@frappe.whitelist()
+def reject_expense(expense_claim_name, reason=None):
+    if hotel_core.has_hotel_core():
+        return _ok(hotel_core.call(HC + "reject_expense_claim", expense_claim_name=expense_claim_name, reason=reason))
+    return _err("Approvals require tb_hotel_core on this bench")
+
+
+# ---------------------------------------------------------------------------
+# Manager analytics + team-member drill-down (scope-checked)
+# ---------------------------------------------------------------------------
+def _require_scope_member(employee):
+    """Reject access unless `employee` is within the caller's supervisory scope
+    (None = full access). Mirrors the desk-side employee-scope contract."""
+    scope = hotel_core.resolve_employee_scope()
+    if scope is not None and employee not in scope:
+        frappe.throw(_("Not authorized to view this employee"), frappe.PermissionError)
+
+
+@frappe.whitelist()
+def team_stats():
+    """Aggregate KPIs for the caller's team — team size, who's in/present/on
+    leave today, and pending approval counts."""
+    if not hotel_core.has_hotel_core():
+        return _err("Team stats require tb_hotel_core on this bench")
+    team = hotel_core.call(HC_MOBILE + "get_my_team")
+    members = team.get("team", []) if isinstance(team, dict) else []
+    approvals = hotel_core.call(HC_MOBILE + "get_team_pending_approvals")
+
+    def _status(m):
+        return (m.get("attendance_status") or "").lower()
+
+    return _ok(
+        {
+            "team_size": len(members),
+            "present_today": sum(1 for m in members if _status(m) == "present"),
+            "on_leave_today": sum(1 for m in members if _status(m) in ("on leave", "half day")),
+            "punched_in": sum(1 for m in members if m.get("punched_in")),
+            "pending_leaves": len(approvals.get("leaves", []) if isinstance(approvals, dict) else []),
+            "pending_expenses": len(approvals.get("expenses", []) if isinstance(approvals, dict) else []),
+        }
+    )
+
+
+@frappe.whitelist()
+def member_detail(employee):
+    """Profile + leave balance + recent attendance + pending leaves for one
+    team member. Scope-checked: the caller must supervise this employee."""
+    if not employee:
+        return _err("employee is required")
+    _require_scope_member(employee)
+
+    profile = frappe.db.get_value(
+        "Employee",
+        employee,
+        ["name", "employee_name", "designation", "department", "branch",
+         "image", "company_email", "cell_number"],
+        as_dict=True,
+    )
+    attendance = frappe.get_all(
+        "Attendance",
+        filters={"employee": employee, "docstatus": ["<", 2]},
+        fields=["attendance_date", "status", "working_hours"],
+        order_by="attendance_date desc",
+        limit=30,
+        ignore_permissions=True,
+    )
+    pending_leaves = frappe.get_all(
+        "Leave Application",
+        filters={"employee": employee, "status": "Open", "docstatus": 0},
+        fields=["name", "leave_type", "from_date", "to_date", "total_leave_days"],
+        order_by="from_date asc",
+        ignore_permissions=True,
+    )
+    return _ok(
+        {
+            "employee": profile,
+            "leave_balance": _self_leave_balance(employee),
+            "attendance": attendance,
+            "pending_leaves": pending_leaves,
+        }
+    )

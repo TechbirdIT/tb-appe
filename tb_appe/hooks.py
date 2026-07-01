@@ -4,7 +4,7 @@ app_publisher = "TechbirdIT"
 app_description = "TB Appe is TechBird's Frappe/ERPNext mobile companion app. It provides a seamless and efficient way to manage your business operations on the go, with a user-friendly interface and powerful features to access and control your data, collaborate with your team, and stay connected with your customers from anywhere, at any time."
 app_email = "ekansh.jain@techbirdit.in"
 app_license = "mit"
-app_home = "/desk/tb_appe"
+app_home = "/app/appe"
 
 # Apps
 # ------------------
@@ -21,7 +21,7 @@ add_to_apps_screen = [
 		"name": "tb_appe",
 		"logo": "/assets/tb_appe/images/appe_logo.png",
 		"title": "TB Appe",
-		"route": "/desk/tb_appe",
+		"route": "/app/appe",
 		# "has_permission": "tb_appe.api.permission.has_app_permission"
 	}
 ]

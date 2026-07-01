@@ -41,8 +41,13 @@ bench --site your-site.localhost clear-cache
 - **Mobile REST API** (`appe_api.py`, `appe_shop_api.py`) — login, dashboard
   sections, check-in/out, leave balance, posts feed, notifications, profile, and
   location tracking endpoints consumed by the mobile client.
-- **DocTypes & Workspace** — the data model and Desk workspace for the mobile app
-  (attendance, customers, employees, expenses, reports, etc.).
+- **DocTypes & Workspace** — the data model and the **Appe** Desk workspace
+  (attendance, customers, employees, expenses, reports, etc.), reachable at
+  [`/app/appe`](/app/appe).
+- **Guided setup** — a **TB Appe Setup** onboarding wizard on the Appe workspace
+  walks you through every section: settings, employees, activity & expense types,
+  the mobile dashboard/modules/screens, customers, leads, posts, push
+  notifications, and the Appe Buddy AI assistant.
 - **Appe Buddy** (`ai/`) — an AI assistant baked into the app that can read data,
   write documents, and build artifacts (DocTypes, Reports, Dashboard Charts, Number
   Cards, Dashboards) on behalf of the logged-in user, always respecting Frappe
@@ -53,6 +58,31 @@ bench --site your-site.localhost clear-cache
 - Configure the AI assistant under **Appe Buddy Settings** (provider, model, and
   capability flags).
 - Other app behaviour is managed via **Appe Settings**.
+
+## First-run setup
+
+Open the **Appe** workspace at [`/app/appe`](/app/appe) and follow the **TB Appe
+Setup** onboarding card at the top. It steps through each feature section:
+
+1. Configure Appe Settings (check-in, tracking, OneSignal, Maps)
+2. Add Employee
+3. Set up Daily Activity Types
+4. Set up Expense Types
+5. Configure the Mobile App Dashboard
+6. Configure Mobile App Modules
+7. Design Mobile Screens
+8. Add a Customer
+9. Capture your first Lead
+10. Publish your first Post
+11. Configure Push Notifications
+12. Configure Appe Buddy (AI)
+13. Open Appe Buddy
+14. View Employee Tracking
+
+> The onboarding only appears while **Enable Onboarding** is on under
+> *System Settings*. After editing client assets (e.g. the Appe Buddy panel),
+> run `bench build --app tb_appe` and `bench --site <site> clear-cache` so the
+> Desk loads the rebuilt bundle.
 
 ## License
 

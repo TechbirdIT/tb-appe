@@ -1,0 +1,21 @@
+{
+ "action": "Go to Page",
+ "action_label": "Open Appe Buddy",
+ "creation": "2026-06-30 00:00:00.000000",
+ "description": "Launch the full-page AI assistant. Ask it about your data, or tell it to build a report or dashboard \u2014 every action is permission-checked and logged.",
+ "docstatus": 0,
+ "doctype": "Onboarding Step",
+ "idx": 0,
+ "is_complete": 0,
+ "is_single": 0,
+ "is_skipped": 0,
+ "modified": "2026-06-30 00:00:00.000000",
+ "modified_by": "Administrator",
+ "name": "Open Appe Buddy",
+ "owner": "Administrator",
+ "path": "appe-buddy",
+ "show_form_tour": 0,
+ "show_full_form": 0,
+ "title": "Open Appe Buddy",
+ "validate_action": 0
+}

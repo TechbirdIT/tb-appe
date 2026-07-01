@@ -1,0 +1,21 @@
+{
+ "action": "Go to Page",
+ "action_label": "Open Tracking Map",
+ "creation": "2026-06-30 00:00:00.000000",
+ "description": "Open the live **Employee Tracking** map: pick an employee and date to see their route, activity timeline and distance/hours summary.",
+ "docstatus": 0,
+ "doctype": "Onboarding Step",
+ "idx": 0,
+ "is_complete": 0,
+ "is_single": 0,
+ "is_skipped": 0,
+ "modified": "2026-06-30 00:00:00.000000",
+ "modified_by": "Administrator",
+ "name": "View Employee Tracking",
+ "owner": "Administrator",
+ "path": "employee-tracking",
+ "show_form_tour": 0,
+ "show_full_form": 0,
+ "title": "View Employee Tracking",
+ "validate_action": 0
+}

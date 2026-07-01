@@ -6,7 +6,7 @@
  "icon_type": "App",
  "idx": 0,
  "label": "Appe",
- "link": "/desk/tb_appe",
+ "link": "/app/appe",
  "link_type": "External",
  "logo_url": "/assets/tb_appe/images/appe_logo.png",
  "modified_by": "Administrator",

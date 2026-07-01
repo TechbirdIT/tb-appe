@@ -1,0 +1,21 @@
+{
+ "action": "Create Entry",
+ "action_label": "New Module",
+ "creation": "2026-06-30 00:00:00.000000",
+ "description": "Group features into **modules** (the app's main menu). Each module holds ordered items that open screens, lists or actions.",
+ "docstatus": 0,
+ "doctype": "Onboarding Step",
+ "idx": 0,
+ "is_complete": 0,
+ "is_single": 0,
+ "is_skipped": 0,
+ "modified": "2026-06-30 00:00:00.000000",
+ "modified_by": "Administrator",
+ "name": "Configure Mobile App Modules",
+ "owner": "Administrator",
+ "reference_document": "Mobile App Module",
+ "show_form_tour": 0,
+ "show_full_form": 0,
+ "title": "Configure Mobile App Modules",
+ "validate_action": 1
+}
