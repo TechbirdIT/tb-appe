@@ -255,6 +255,9 @@ def get_me():
             # employee toggle — the app only asks the employee to grant the OS
             # permission when this is on.
             "location_tracking": _location_tracking_enabled(),
+            # Public OneSignal App ID so the client can initialise push (the
+            # REST key stays server-side). Empty when push isn't configured.
+            "onesignal_app_id": frappe.db.get_single_value("Appe Settings", "onesignal_app_id") or "",
         },
     }
 

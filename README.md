@@ -49,6 +49,25 @@ bench --site your-site.localhost clear-cache
   flags (e.g. `can_view_payroll`, `can_announce`) so the client can tailor its
   UI without hard-coding roles. Company announcements (`announce`) are gated to
   admin / management roles (`rbac._ANNOUNCE_ROLES`).
+- **Config-driven role dashboards** — `Mobile App Dashboard` / `Mobile App
+  Module` carry RBAC targeting (archetype checks + role-profile / role /
+  department lists); `get_dashboard_sections` / `get_module_data` filter by the
+  caller. When `tb_hotel_core` is installed, the gateway proxies its scoped HRMS
+  (`api/hrms/*`, `mobile_hrms`) in-process; otherwise it falls back to generic
+  ERPNext/HRMS.
+- **Approvals (hybrid, `pending_approvals`)** — a line manager approves their
+  team; HR/Admin can approve anything; HR's and the GM's own requests route to
+  the Admin (no self-approval). Covers leave, expense, shift and attendance.
+- **Directory & location** — `directory` (all employees in scope), plus
+  `employee_route` + cached OSM/Nominatim reverse geocoding (`api/geocode.py`)
+  for the tracking map; the Desk **Employee Tracking** page uses Leaflet/OSM.
+- **Create forms** (`api/forms.py`) — permission-gated, meta-driven document
+  creation the app renders (e.g. Shift Assignment) — only doctypes the user may
+  create are offered.
+- **Push** — company announcements fan out a native push to every employee via
+  the existing `Mobile App Notification` → **OneSignal** path (targets by
+  external id == Frappe user). Configure `onesignal_app_id` + `onesignal_api_key`
+  in *Appe Settings*.
 - **DocTypes & Workspace** — the data model and the **Appe** Desk workspace
   (attendance, customers, employees, expenses, reports, etc.), reachable at
   [`/app/appe`](/app/appe).
@@ -65,7 +84,27 @@ bench --site your-site.localhost clear-cache
 
 - Configure the AI assistant under **Appe Buddy Settings** (provider, model, and
   capability flags).
-- Other app behaviour is managed via **Appe Settings**.
+- Other app behaviour is managed via **Appe Settings** — check-in policy, live
+  location tracking, **OneSignal** (`onesignal_app_id` + REST `onesignal_api_key`)
+  for push, and the mobile dashboard/module RBAC targeting.
+
+## Local demo data (DEV ONLY — never on production)
+
+Idempotent seeds under `tb_appe/setup/` populate a StayBird-style demo org so
+the role-tailored app can be exercised end to end:
+
+```bash
+# 20 users + employees, one per SB role profile, wired into a hierarchy
+bench --site <site> execute tb_appe.setup.seed_rbac_demo.execute
+# role-targeted Mobile App Dashboard sections (per archetype)
+bench --site <site> execute tb_appe.setup.seed_dashboards.execute
+# leave allocations, attendance, check-ins, payslips, pending requests,
+# and the airtight approver hierarchy (HR/GM -> Admin)
+bench --site <site> execute tb_appe.setup.seed_hrms_demo.execute
+```
+
+Each has a matching `purge`. Demo logins are `<slug>@sb.appe.local` with a shared
+demo password. Requires `tb_hotel_core` (for the SB role profiles + scoped HRMS).
 
 ## First-run setup
 

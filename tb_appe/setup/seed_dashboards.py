@@ -118,7 +118,9 @@ _SEEDED_NAMES = [s["section_name"] for s in _SECTIONS]
 # clobber a targeting an admin set deliberately.
 _LEGACY_TARGETING = {
     "HR Announcements": {"all_users": 1},
-    "HR KPIs": {"show_executive": 1, "show_manager": 1, "target_roles": "HR Manager, HR User"},
+    # Org-wide counts — HR / executive / admin only (a line manager's approver
+    # inbox is their reports, so org totals would mismatch for them).
+    "HR KPIs": {"show_executive": 1, "target_roles": "HR Manager, HR User"},
     "People & Attendance": {"show_executive": 1, "show_manager": 1, "show_supervisor": 1},
     "Recruitment & Growth": {"show_executive": 1, "target_roles": "HR Manager, HR User"},
 }

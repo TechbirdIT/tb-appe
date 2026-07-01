@@ -326,28 +326,47 @@ def _meta_has(doctype, field):
 
 
 def _my_pending_approvals(user=None):
-    """Pending requests where the caller is the DESIGNATED approver — airtight:
-    you only ever see (and can act on) requests routed to you. Covers leave,
-    expense, shift and attendance requests. This matches the correct approval
-    hierarchy (e.g. HR Manager / GM requests route to the Admin)."""
+    """Hybrid approval model. A request appears in my inbox when:
+      * I'm its DESIGNATED approver (line manager of the employee), OR
+      * I have OVERRIDE authority (HR / Admin) — HR/Admin can action ANY request
+        in scope. Override never includes my OWN request, and non-admin override
+        (HR/GM) never includes requests reserved to the Admin (i.e. the GM's and
+        HR head's own, whose approver is Administrator).
+    Covers leave, expense, shift and attendance requests."""
     user = user or frappe.session.user
-    out = {"leaves": [], "expenses": [], "shift_requests": [], "attendance_requests": []}
+    roles = set(frappe.get_roles(user))
+    is_admin = "System Manager" in roles or user == "Administrator"
+    is_override = is_admin or bool(roles & {"HR Manager", "HR User"})
+    my_emp = hotel_core.get_session_employee()
+    scope = hotel_core.resolve_employee_scope(user)
 
-    out["leaves"] = frappe.get_all(
-        "Leave Application",
-        filters={"status": "Open", "docstatus": 0, "leave_approver": user},
-        fields=["name", "employee", "employee_name", "leave_type", "from_date",
-                "to_date", "total_leave_days", "description", "posting_date"],
-        order_by="from_date asc",
-        ignore_permissions=True,
+    def _fetch(doctype, base, approver_field, fields, order_by):
+        f = dict(base)
+        if not is_override:
+            f[approver_field] = user
+            return frappe.get_all(doctype, filters=f, fields=fields, order_by=order_by, ignore_permissions=True)
+        # Override: everything in scope, then drop own + (for HR/GM) admin-reserved.
+        if isinstance(scope, list):
+            f["employee"] = ["in", scope]
+        rows = frappe.get_all(doctype, filters=f, fields=fields, order_by=order_by, ignore_permissions=True)
+        if my_emp:
+            rows = [r for r in rows if r.get("employee") != my_emp]
+        if not is_admin:
+            rows = [r for r in rows if r.get(approver_field) != "Administrator"]
+        return rows
+
+    out = {"leaves": [], "expenses": [], "shift_requests": [], "attendance_requests": []}
+    out["leaves"] = _fetch(
+        "Leave Application", {"status": "Open", "docstatus": 0}, "leave_approver",
+        ["name", "employee", "employee_name", "leave_type", "from_date", "to_date",
+         "total_leave_days", "description", "posting_date", "leave_approver"],
+        "from_date asc",
     )
-    out["expenses"] = frappe.get_all(
-        "Expense Claim",
-        filters={"approval_status": "Draft", "docstatus": 0, "expense_approver": user},
-        fields=["name", "employee", "employee_name", "posting_date",
-                "total_claimed_amount", "total_sanctioned_amount"],
-        order_by="posting_date asc",
-        ignore_permissions=True,
+    out["expenses"] = _fetch(
+        "Expense Claim", {"approval_status": "Draft", "docstatus": 0}, "expense_approver",
+        ["name", "employee", "employee_name", "posting_date", "total_claimed_amount",
+         "total_sanctioned_amount", "expense_approver"],
+        "posting_date asc",
     )
     if _meta_has("Shift Request", "approver"):
         out["shift_requests"] = frappe.get_all(
@@ -372,6 +391,35 @@ def pending_approvals():
     return _ok(_my_pending_approvals())
 
 
+@frappe.whitelist()
+def all_pending():
+    """Read-only oversight of ALL pending leave/expense in the caller's scope
+    (HR/full-access → org-wide) — matches the org KPI counts. Each row carries
+    the assigned approver so HR can see who is actioning it. Distinct from
+    `pending_approvals` (only what *I* must approve)."""
+    scope = hotel_core.resolve_employee_scope()
+    if isinstance(scope, list) and not scope:
+        return _ok({"leaves": [], "expenses": []})
+    lf = {"status": "Open", "docstatus": 0}
+    ef = {"approval_status": "Draft", "docstatus": 0}
+    if isinstance(scope, list):
+        lf["employee"] = ["in", scope]
+        ef["employee"] = ["in", scope]
+    leaves = frappe.get_all(
+        "Leave Application", filters=lf,
+        fields=["name", "employee_name", "leave_type", "from_date", "to_date",
+                "total_leave_days", "leave_approver"],
+        order_by="from_date asc", ignore_permissions=True,
+    )
+    expenses = frappe.get_all(
+        "Expense Claim", filters=ef,
+        fields=["name", "employee_name", "posting_date", "total_claimed_amount",
+                "expense_approver"],
+        order_by="posting_date asc", ignore_permissions=True,
+    )
+    return _ok({"leaves": leaves, "expenses": expenses})
+
+
 # ---------------------------------------------------------------------------
 # Company announcements (Appe Post) — gated to admin / management
 # ---------------------------------------------------------------------------
@@ -386,15 +434,52 @@ def announce(title, content):
         frappe.throw(_("You are not permitted to post announcements"), frappe.PermissionError)
     if not (title and str(title).strip() and content and str(content).strip()):
         return _err("Title and content are required")
+    title = str(title).strip()
+    content = str(content).strip()
     doc = frappe.get_doc({
         "doctype": "Appe Post",
-        "title": str(title).strip(),
-        "content": str(content).strip(),
+        "title": title,
+        "content": content,
         "post": 1,
     })
     doc.insert(ignore_permissions=True)
     frappe.db.commit()
-    return _ok({"name": doc.name})
+
+    pushed = _push_announcement(title, content)
+    return _ok({"name": doc.name, "pushed": pushed})
+
+
+def _push_announcement(title, content):
+    """Best-effort native push for a new announcement, to every active
+    employee, via the existing Mobile App Notification → OneSignal path. Never
+    fails the announcement itself (push is a bonus and may be unconfigured)."""
+    if not frappe.db.get_single_value("Appe Settings", "onesignal_app_id"):
+        return False  # push not configured yet
+    try:
+        users = frappe.get_all(
+            "Employee",
+            filters={"status": "Active"},
+            pluck="user_id",
+            ignore_permissions=True,
+        )
+        users = sorted({u for u in users if u})
+        if not users:
+            return False
+        note = frappe.new_doc("Mobile App Notification")
+        note.title = f"\U0001F4E2 {title}"  # 📢
+        note.message = content[:240]
+        note.data = frappe.as_json({"type": "announcement"})
+        for u in users:
+            note.append("users", {"user": u})
+        note.flags.ignore_permissions = True
+        note.insert()
+        note.submit()  # before_submit fires the OneSignal push
+        frappe.db.commit()
+        return True
+    except Exception:
+        frappe.db.rollback()
+        frappe.log_error("Announcement push failed", "tb_appe.announce")
+        return False
 
 
 @frappe.whitelist()
