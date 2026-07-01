@@ -401,6 +401,83 @@ def ensure_shift_types():
     frappe.db.commit()
 
 
+def _approver_for(e, by):
+    """Approval routing (airtight, no self-approval):
+      * top-level (GM, no reports_to)     -> Administrator
+      * HR head (user has HR Manager role) -> Administrator  (HR can't approve HR)
+      * everyone else                     -> their reports_to manager's user
+    """
+    is_top = not e.get("reports_to")
+    is_hr_head = bool(e.get("user_id")) and "HR Manager" in frappe.get_roles(e.user_id)
+    if is_top or is_hr_head:
+        return "Administrator"
+    mgr = by.get(e.get("reports_to"))
+    return (mgr.get("user_id") if mgr else None) or "Administrator"
+
+
+def setup_approver_hierarchy():
+    """Set Employee leave/expense approvers, grant approver roles, and re-point
+    existing pending requests. Also ensures the top of the org (GM) has a leave
+    pending Admin approval so the rule is demonstrable."""
+    emps = frappe.get_all(
+        "Employee",
+        filters={"company_email": ["like", f"%@{DOMAIN}"]},
+        fields=["name", "employee_name", "user_id", "reports_to", "department"],
+    )
+    by = {e.name: e for e in emps}
+
+    approver_users = set()
+    for e in emps:
+        appr = _approver_for(e, by)
+        frappe.db.set_value(
+            "Employee", e.name, {"leave_approver": appr, "expense_approver": appr}
+        )
+        approver_users.add(appr)
+
+    # Every approver must hold the approver roles (managers had Leave Approver but
+    # not always Expense Approver). Administrator already has both.
+    for u in approver_users:
+        if u and u != "Administrator" and frappe.db.exists("User", u):
+            frappe.get_doc("User", u).add_roles("Leave Approver", "Expense Approver")
+
+    # Re-point existing pending requests to each employee's approver.
+    for la in frappe.get_all(
+        "Leave Application", filters={"status": "Open", "docstatus": 0}, fields=["name", "employee"]
+    ):
+        e = by.get(la.employee)
+        if e:
+            frappe.db.set_value("Leave Application", la.name, "leave_approver", _approver_for(e, by))
+    for ec in frappe.get_all(
+        "Expense Claim", filters={"approval_status": "Draft", "docstatus": 0}, fields=["name", "employee"]
+    ):
+        e = by.get(ec.employee)
+        if e:
+            frappe.db.set_value("Expense Claim", ec.name, "expense_approver", _approver_for(e, by))
+
+    # Ensure the GM (top) has a leave pending Admin approval (they have no
+    # reports_to, so the generic request seeder skips them).
+    gm = next((e for e in emps if not e.get("reports_to")), None)
+    if gm and not frappe.db.exists(
+        "Leave Application", {"employee": gm.name, "status": "Open", "docstatus": 0}
+    ):
+        try:
+            doc = frappe.get_doc({
+                "doctype": "Leave Application", "employee": gm.name,
+                "leave_type": "Casual Leave",
+                "from_date": add_days(getdate(nowdate()), 10),
+                "to_date": add_days(getdate(nowdate()), 11),
+                "leave_approver": "Administrator", "status": "Open",
+                "description": "GM leave (demo) — routes to Admin",
+            })
+            doc.flags.ignore_permissions = True
+            doc.insert()
+        except Exception:
+            frappe.db.rollback()
+
+    frappe.db.commit()
+    return len(emps)
+
+
 def execute():
     emps = _demo_employees()
     if not emps:
@@ -418,6 +495,7 @@ def execute():
         ("leave_requests", lambda: seed_leave_requests(emps)),
         ("expense_claims", lambda: (ensure_expense_types(), seed_expense_claims(emps))[1]),
         ("payslips", lambda: seed_salary(emps)),
+        ("approver_hierarchy", setup_approver_hierarchy),
     ]:
         try:
             results[label] = fn()

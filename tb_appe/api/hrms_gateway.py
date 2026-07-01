@@ -321,6 +321,89 @@ def team_approvals():
     return _err("Approvals require tb_hotel_core on this bench")
 
 
+def _meta_has(doctype, field):
+    return frappe.db.exists("DocType", doctype) and frappe.get_meta(doctype).has_field(field)
+
+
+def _my_pending_approvals(user=None):
+    """Pending requests where the caller is the DESIGNATED approver — airtight:
+    you only ever see (and can act on) requests routed to you. Covers leave,
+    expense, shift and attendance requests. This matches the correct approval
+    hierarchy (e.g. HR Manager / GM requests route to the Admin)."""
+    user = user or frappe.session.user
+    out = {"leaves": [], "expenses": [], "shift_requests": [], "attendance_requests": []}
+
+    out["leaves"] = frappe.get_all(
+        "Leave Application",
+        filters={"status": "Open", "docstatus": 0, "leave_approver": user},
+        fields=["name", "employee", "employee_name", "leave_type", "from_date",
+                "to_date", "total_leave_days", "description", "posting_date"],
+        order_by="from_date asc",
+        ignore_permissions=True,
+    )
+    out["expenses"] = frappe.get_all(
+        "Expense Claim",
+        filters={"approval_status": "Draft", "docstatus": 0, "expense_approver": user},
+        fields=["name", "employee", "employee_name", "posting_date",
+                "total_claimed_amount", "total_sanctioned_amount"],
+        order_by="posting_date asc",
+        ignore_permissions=True,
+    )
+    if _meta_has("Shift Request", "approver"):
+        out["shift_requests"] = frappe.get_all(
+            "Shift Request",
+            filters={"docstatus": 0, "approver": user, "status": ["!=", "Approved"]},
+            fields=["name", "employee", "employee_name", "shift_type", "from_date", "to_date"],
+            ignore_permissions=True,
+        )
+    if _meta_has("Attendance Request", "approver"):
+        out["attendance_requests"] = frappe.get_all(
+            "Attendance Request",
+            filters={"docstatus": 0, "approver": user},
+            fields=["name", "employee", "employee_name", "from_date", "to_date", "reason"],
+            ignore_permissions=True,
+        )
+    out["count"] = sum(len(v) for v in out.values() if isinstance(v, list))
+    return out
+
+
+@frappe.whitelist()
+def pending_approvals():
+    return _ok(_my_pending_approvals())
+
+
+@frappe.whitelist()
+def directory(search=None, department=None, limit=500):
+    """Every employee the caller may SEE (their scope) — distinct from `my_team`
+    (direct reports). HR / full-access sees all; a manager sees their scoped set.
+    Tap-through detail stays scope-checked via member_detail."""
+    scope = hotel_core.resolve_employee_scope()
+    if isinstance(scope, list) and not scope:
+        return _ok({"count": 0, "employees": []})
+    filters = {"status": "Active"}
+    if isinstance(scope, list):
+        filters["name"] = ["in", scope]
+    if department:
+        filters["department"] = department
+    or_filters = None
+    if search:
+        or_filters = [
+            ["employee_name", "like", f"%{search}%"],
+            ["name", "like", f"%{search}%"],
+        ]
+    rows = frappe.get_all(
+        "Employee",
+        filters=filters,
+        or_filters=or_filters,
+        fields=["name", "employee_name", "designation", "department", "branch",
+                "image", "cell_number"],
+        order_by="employee_name asc",
+        limit=limit,
+        ignore_permissions=True,
+    )
+    return _ok({"count": len(rows), "employees": rows})
+
+
 @frappe.whitelist()
 def approve_leave(leave_application_name):
     if hotel_core.has_hotel_core():
@@ -349,6 +432,34 @@ def reject_expense(expense_claim_name, reason=None):
     return _err("Approvals require tb_hotel_core on this bench")
 
 
+@frappe.whitelist()
+def approve_shift(shift_request_name):
+    if hotel_core.has_hotel_core():
+        return _ok(hotel_core.call(HC + "approve_shift_request", shift_request_name=shift_request_name))
+    return _err("Approvals require tb_hotel_core on this bench")
+
+
+@frappe.whitelist()
+def reject_shift(shift_request_name, reason=None):
+    if hotel_core.has_hotel_core():
+        return _ok(hotel_core.call(HC + "reject_shift_request", shift_request_name=shift_request_name, reason=reason))
+    return _err("Approvals require tb_hotel_core on this bench")
+
+
+@frappe.whitelist()
+def approve_attendance(request_name):
+    if hotel_core.has_hotel_core():
+        return _ok(hotel_core.call(HC + "approve_attendance_request", request_name=request_name))
+    return _err("Approvals require tb_hotel_core on this bench")
+
+
+@frappe.whitelist()
+def reject_attendance(request_name):
+    if hotel_core.has_hotel_core():
+        return _ok(hotel_core.call(HC + "reject_attendance_request", request_name=request_name))
+    return _err("Approvals require tb_hotel_core on this bench")
+
+
 # ---------------------------------------------------------------------------
 # Manager analytics + team-member drill-down (scope-checked)
 # ---------------------------------------------------------------------------
@@ -368,7 +479,9 @@ def team_stats():
         return _err("Team stats require tb_hotel_core on this bench")
     team = hotel_core.call(HC_MOBILE + "get_my_team")
     members = team.get("team", []) if isinstance(team, dict) else []
-    approvals = hotel_core.call(HC_MOBILE + "get_team_pending_approvals")
+    # Pending counts are approver-based (what *I* must action), so they match
+    # the approvals inbox rather than the whole team's requests.
+    pend = _my_pending_approvals()
 
     def _status(m):
         return (m.get("attendance_status") or "").lower()
@@ -379,8 +492,9 @@ def team_stats():
             "present_today": sum(1 for m in members if _status(m) == "present"),
             "on_leave_today": sum(1 for m in members if _status(m) in ("on leave", "half day")),
             "punched_in": sum(1 for m in members if m.get("punched_in")),
-            "pending_leaves": len(approvals.get("leaves", []) if isinstance(approvals, dict) else []),
-            "pending_expenses": len(approvals.get("expenses", []) if isinstance(approvals, dict) else []),
+            "pending_leaves": len(pend["leaves"]),
+            "pending_expenses": len(pend["expenses"]),
+            "pending_total": pend["count"],
         }
     )
 
