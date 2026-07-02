@@ -14,16 +14,22 @@ class MobileAppNotification(Document):
 
 		if onesignal_api_key and app_id:
 			url = "https://api.onesignal.com/notifications?c=push"
+			# New OneSignal REST keys (os_v2_app_...) authenticate with the "Key"
+			# scheme; legacy keys use "Basic". Support both.
+			scheme = "Key" if onesignal_api_key.startswith("os_v2_") else "Basic"
 			headers = {
 				"Content-Type": "application/json; charset=utf-8",
-				"Authorization": f"Basic {onesignal_api_key}"
+				"Authorization": f"{scheme} {onesignal_api_key}"
 			}
+			# Target by external id == Frappe user (the app calls OneSignal.login
+			# with the signed-in user). include_aliases is the current API; the
+			# legacy include_external_user_ids is deprecated.
 			receipt = [str(d.user) for d in self.users if d.user]
 			payload = {
 				"app_id": app_id,
-				"include_external_user_ids": receipt,
-				"channel_for_external_user_ids": "push",
-				
+				"target_channel": "push",
+				"include_aliases": {"external_id": receipt},
+
 				"headings": {"en": self.title},
 				"contents": {"en": self.message},
 			}
