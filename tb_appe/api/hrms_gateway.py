@@ -662,14 +662,22 @@ def _haversine_km(a, b):
 @frappe.whitelist()
 def employee_route(employee=None, date=None):
     """Location trail for a day, built from raw Employee Location points (no
-    dependency on the aggregated route summary). Defaults to the caller; viewing
-    another employee is scope-checked."""
+    dependency on the aggregated route summary).
+
+    Location history is a management oversight function: it's viewed by an
+    employee's manager, never by the employee about themselves. So `employee`
+    is required, self-view is refused, and viewing anyone else is scope-checked
+    (the caller must supervise them; HR/Admin have full scope)."""
+    if not employee:
+        return _err("An employee must be specified")
     me = _require_employee()
-    emp = employee or me
-    if not emp:
-        return _err("No employee record found for your user account")
-    if employee and employee != me:
-        _require_scope_member(employee)
+    if me and employee == me:
+        frappe.throw(
+            _("Location history is viewed by your manager, not about yourself"),
+            frappe.PermissionError,
+        )
+    _require_scope_member(employee)
+    emp = employee
 
     day = date or frappe.utils.today()
     rows = frappe.get_all(

@@ -57,7 +57,7 @@ _SECTIONS = [
         "sequence_id": 10,
         "targeting": {"all_users": 1},
         "items": [
-            _item("Check In / Out", "checkin", "log-in", "#0369A1", data_source="checkin_status"),
+            # Check-in itself lives on the home "Today's Attendance" card.
             _item("Attendance", "attendance", "calendar-check", "#16A34A", data_source="my_attendance"),
             _item("Leave", "leave", "palm-tree", "#F97316", data_source="my_leave_balance"),
             _item("Payslips", "payslips", "banknote", "#1E3A8A", data_source="my_payslips"),
