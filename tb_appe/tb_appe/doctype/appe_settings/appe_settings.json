@@ -8,6 +8,8 @@
  "field_order": [
   "enable_checkin",
   "enable_checkin_with_faceid",
+  "checkin_wifi_section",
+  "allowed_wifi",
   "enable_live_location_tracking",
   "enable_home_tabs",
   "home_screen_header_icon",
@@ -141,6 +143,18 @@
    "fieldname": "home_screen_header_icon",
    "fieldtype": "Attach",
    "label": "Home Screen Header Icon"
+  },
+  {
+   "fieldname": "checkin_wifi_section",
+   "fieldtype": "Section Break",
+   "label": "Check-in Wi-Fi Geofence"
+  },
+  {
+   "fieldname": "allowed_wifi",
+   "fieldtype": "Table",
+   "label": "Allowed Networks",
+   "options": "Appe Wifi Network",
+   "description": "Employees may only check in while connected to one of these access points (matched by BSSID). Leave empty to disable."
   }
  ],
  "grid_page_length": 50,
