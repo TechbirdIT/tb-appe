@@ -74,12 +74,30 @@ _SECTIONS = [
         ],
     },
     {
+        "section_name": "My Shifts",
+        "section_view": "List View",
+        "sequence_id": 25,
+        "targeting": {"all_users": 1},
+        "items": [
+            _item("My Shifts", "shifts", "clock", "#0E7490", data_source="my_shifts", render="my_shifts"),
+        ],
+    },
+    {
         "section_name": "My Team",
         "section_view": "Horizontal Scrollable View",
         "sequence_id": 30,
         "targeting": {"show_supervisor": 1, "show_manager": 1, "show_executive": 1},
         "items": [
             _item("Team", "team", "users", "#1E3A8A", data_source="my_team", render="team_roster"),
+        ],
+    },
+    {
+        "section_name": "Shift Roster",
+        "section_view": "List View",
+        "sequence_id": 35,
+        "targeting": {"show_supervisor": 1, "show_manager": 1, "show_executive": 1},
+        "items": [
+            _item("Shift Roster", "team_shifts", "calendar", "#7C3AED", data_source="team_roster", render="team_shifts"),
         ],
     },
     {
