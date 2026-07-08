@@ -491,18 +491,22 @@ def assign_shift(employee, shift_type, start_date, end_date=None, status="Active
 
 
 @frappe.whitelist(methods=["POST"])
-def update_shift(name, shift_type=None, start_date=None, end_date=None, status=None, shift_location=None):
+def update_shift(name, shift_type=None, start_date=None, end_date=None, status=None, shift_location=None, clear_end_date=0):
     """Replace an assignment: cancel the submitted doc and create a new one
     with the merged values (only end_date/status are allow_on_submit, so
     in-place edits can't change the shift or dates). Atomic — a validation
-    failure rolls the cancel back too."""
+    failure rolls the cancel back too. Pass clear_end_date=1 to make the
+    replacement open-ended (an empty end_date just keeps the old one)."""
     doc = frappe.get_doc("Shift Assignment", name)
     _require_shift_writer(doc.employee)
     new_shift_type = shift_type or doc.shift_type
     if not frappe.db.exists("Shift Type", new_shift_type):
         return _err("Choose a valid shift type")
     new_start = _getdate(start_date, "start_date") if start_date else doc.start_date
-    new_end = _getdate(end_date, "end_date") if end_date else doc.end_date
+    if frappe.utils.cint(clear_end_date):
+        new_end = None
+    else:
+        new_end = _getdate(end_date, "end_date") if end_date else doc.end_date
     if new_end and frappe.utils.getdate(new_end) < frappe.utils.getdate(new_start):
         return _err("end_date must be on or after start_date")
     new_status = status or doc.status
