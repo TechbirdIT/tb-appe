@@ -99,6 +99,12 @@ frappe.pages['employee-tracking'].on_page_load = function(wrapper) {
     `).appendTo(page.body);
 
     initMap();
+
+    // Wire the page up (these lived only in a commented-out draft before, so
+    // the employee list never loaded and Load did nothing).
+    loadEmployees();
+    $("#tracking_date").val(frappe.datetime.get_today());
+    $("#load_tracking").on("click", loadTracking);
 };
 
 let map;

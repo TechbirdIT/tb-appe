@@ -21,14 +21,18 @@ def haversine(lat1, lon1, lat2, lon2):
     return R * c
 
 
-def create_daily_route_summary():
+def create_daily_route_summary(date=None):
+    """Nightly aggregation of raw Employee Location points into
+    Appe Employee Route Summary (one doc per employee per day) for the desk
+    Employee Tracking page. Defaults to yesterday; pass a date to backfill."""
+    date = str(date or frappe.utils.add_days(frappe.utils.today(), -1))
 
-    date = frappe.utils.add_days(frappe.utils.today(), -1)
-
+    # Employee Location has no posting_date; the day lives in the string
+    # `timestamp` (YYYY-MM-DD HH:MM:SS), so bound it lexicographically.
     employees = frappe.get_all(
         "Employee Location",
         fields=["employee"],
-        filters={"posting_date": date},
+        filters={"timestamp": ["between", [f"{date} 00:00:00", f"{date} 23:59:59"]]},
         group_by="employee"
     )
 
@@ -39,10 +43,14 @@ def create_daily_route_summary():
 
 def process_employee(employee, date):
 
+    date = str(date)
     locations = frappe.get_all(
         "Employee Location",
         filters={
-            "employee": employee
+            "employee": employee,
+            # only THIS day's points — without this the "daily" summary
+            # aggregated the employee's entire location history
+            "timestamp": ["between", [f"{date} 00:00:00", f"{date} 23:59:59"]],
         },
         fields=[
             "latitude",

@@ -163,6 +163,14 @@ doc_events = {
 # Scheduled Tasks
 # ---------------
 
+scheduler_events = {
+	"daily": [
+		# Aggregate yesterday's raw Employee Location points into
+		# Appe Employee Route Summary (desk Employee Tracking page).
+		"tb_appe.api.tasks.create_daily_route_summary",
+	],
+}
+
 # scheduler_events = {
 # 	"all": [
 # 		"tb_appe.tasks.all"
