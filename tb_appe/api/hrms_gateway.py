@@ -445,26 +445,65 @@ def announce(title, content):
     doc.insert(ignore_permissions=True)
     frappe.db.commit()
 
-    pushed = _push_announcement(title, content)
-    return _ok({"name": doc.name, "pushed": pushed})
+    recipients = _announcement_recipients()
+    # In-app bell (Notification Log) for everyone — not just a native push.
+    notified = _notify_announcement(recipients, title, content)
+    # Native OneSignal push (best-effort).
+    pushed = _push_announcement(recipients, title, content)
+    return _ok({"name": doc.name, "pushed": pushed, "notified": notified})
 
 
-def _push_announcement(title, content):
-    """Best-effort native push for a new announcement, to every active
-    employee, via the existing Mobile App Notification → OneSignal path. Never
-    fails the announcement itself (push is a bonus and may be unconfigured)."""
+def _announcement_recipients():
+    """Active employees' user ids — the audience for a company announcement."""
+    users = frappe.get_all(
+        "Employee",
+        filters={"status": "Active"},
+        pluck="user_id",
+        ignore_permissions=True,
+    )
+    return sorted({u for u in users if u})
+
+
+def _notify_announcement(users, title, content):
+    """Create an in-app Notification Log (the bell) for every recipient, so an
+    announcement lands in the notifications list alongside HR alerts — not only
+    as a push. type=Alert so the sender is included too."""
+    if not users:
+        return 0
+    try:
+        # Synchronous (like the push in the same request) so the bell updates
+        # immediately. type=Alert also includes the sender.
+        from frappe.desk.doctype.notification_log.notification_log import (
+            make_notification_logs,
+        )
+
+        make_notification_logs(
+            frappe._dict(
+                {
+                    "type": "Alert",
+                    "subject": f"\U0001F4E2 {title}",  # 📢
+                    "email_content": content,
+                    "from_user": frappe.session.user,
+                }
+            ),
+            users,
+        )
+        frappe.db.commit()
+        return len(users)
+    except Exception:
+        frappe.log_error("Announcement notification-log failed", "tb_appe.announce")
+        return 0
+
+
+def _push_announcement(users, title, content):
+    """Best-effort native OneSignal push to the given recipients, via the
+    Mobile App Notification → OneSignal path. Never fails the announcement
+    itself (push is a bonus and may be unconfigured)."""
     if not frappe.db.get_single_value("Appe Settings", "onesignal_app_id"):
         return False  # push not configured yet
+    if not users:
+        return False
     try:
-        users = frappe.get_all(
-            "Employee",
-            filters={"status": "Active"},
-            pluck="user_id",
-            ignore_permissions=True,
-        )
-        users = sorted({u for u in users if u})
-        if not users:
-            return False
         note = frappe.new_doc("Mobile App Notification")
         note.title = f"\U0001F4E2 {title}"  # 📢
         note.message = content[:240]
@@ -479,6 +518,7 @@ def _push_announcement(title, content):
     except Exception:
         frappe.db.rollback()
         frappe.log_error("Announcement push failed", "tb_appe.announce")
+        return False
         return False
 
 
