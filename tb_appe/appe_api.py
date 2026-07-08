@@ -330,70 +330,25 @@ def login_user(usr, pwd):
         "message": "User Not Exists",
     }
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist()
 def sendOTP():
-    frappe.local.response["message"] = {
-        "status": True,
-        "message": "OTP sent successfully",  
-    }
-    return
-
-@frappe.whitelist(allow_guest=True)
-def verifyOTP(usr, pwd):
-
-    if not usr or not pwd:
-        frappe.local.response["message"] = {
-            "status": False,
-            "message": "invalid inputs"
-        }
-        return
-    user_email = ""
-    user_exist = frappe.db.count("User",{'email': usr})
-    if user_exist > 0:
-        userm = frappe.db.get_all('User', filters={'email': usr}, fields=['*'])
-        user_email = userm[0].name
-        try:
-            check_password(user_email, pwd)
-        except Exception as e:
-            frappe.local.response["message"] = {
-                "status": False,
-                "message": "User Password  Is Not Correct",
-            }
-            return
-
-
-
-        api_key, api_secret = generate_keys(user_email)
-        # frappe.local.login_manager.user = user_email
-        # frappe.local.login_manager.post_login()
-        employee_data = frappe.db.get_all('Employee', filters={'user_id': user_email}, fields=['*'])
-        if employee_data :
-            settings = frappe.get_doc('Appe Settings')
-
-            frappe.log_error("appe_api.py login_user employee_data", {
-                "status": True,
-                "message": "User Already Exists",
-                "data":{
-                "token" :f"token {api_key}:{api_secret}",
-                "user": employee_data[0].user_id,
-                "settings": settings
-                }
-            })
-
-            frappe.local.response["message"] = {
-                "status": True,
-                "message": "User Already Exists",
-                "data":{
-                "token" :f"token {api_key}:{api_secret}",
-                "user": employee_data[0].user_id,
-                "settings": settings
-                }
-            }
-            return        
-
+    """Disabled. Was a guest-callable stub that always claimed an OTP was
+    sent; the app never used it. Kept only so old clients get a clear error
+    instead of a 404."""
     frappe.local.response["message"] = {
         "status": False,
-        "message": "User Not Exists",
+        "message": "OTP login is not supported",
+    }
+
+
+@frappe.whitelist()
+def verifyOTP(usr=None, pwd=None):
+    """Disabled. Was a guest-callable duplicate of login_user that verified a
+    password and minted API tokens (and leaked them into the Error Log). Use
+    login_user instead."""
+    frappe.local.response["message"] = {
+        "status": False,
+        "message": "OTP login is not supported",
     }
 
 

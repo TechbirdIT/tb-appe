@@ -540,12 +540,21 @@ def directory(search=None, department=None, limit=500):
             ["employee_name", "like", f"%{search}%"],
             ["name", "like", f"%{search}%"],
         ]
+    # Phone numbers are PII: only HR/admin get them; everyone else gets the
+    # public card (name, role, department, photo).
+    roles = set(frappe.get_roles())
+    show_phone = (
+        frappe.session.user == "Administrator"
+        or bool(roles & {"System Manager", "HR Manager", "HR User"})
+    )
+    fields = ["name", "employee_name", "designation", "department", "branch", "image"]
+    if show_phone:
+        fields.append("cell_number")
     rows = frappe.get_all(
         "Employee",
         filters=filters,
         or_filters=or_filters,
-        fields=["name", "employee_name", "designation", "department", "branch",
-                "image", "cell_number"],
+        fields=fields,
         order_by="employee_name asc",
         limit=limit,
         ignore_permissions=True,
@@ -553,9 +562,37 @@ def directory(search=None, department=None, limit=500):
     return _ok({"count": len(rows), "employees": rows})
 
 
+def _require_approval_rights(doctype, name, approver_field):
+    """Defense-in-depth guard run BEFORE delegating an approval action to
+    tb_hotel_core: the caller must be the request's designated approver, or
+    hold override authority (Admin, or HR Manager/HR User with the employee
+    in scope). Mirrors the `_my_pending_approvals` inbox rules exactly, so
+    everything visible in the inbox is actionable and nothing else is —
+    tb_appe stays safe even if the delegate's own checks regress."""
+    user = frappe.session.user
+    row = frappe.db.get_value(doctype, name, ["employee", approver_field], as_dict=True)
+    if not row:
+        frappe.throw(_("{0} {1} not found").format(_(doctype), name))
+    if row.get(approver_field) == user:
+        return
+    roles = set(frappe.get_roles(user))
+    is_admin = "System Manager" in roles or user == "Administrator"
+    if not (is_admin or roles & {"HR Manager", "HR User"}):
+        frappe.throw(_("You are not the approver for this request"), frappe.PermissionError)
+    my_emp = hotel_core.get_session_employee()
+    if my_emp and row.get("employee") == my_emp:
+        frappe.throw(_("You cannot action your own request"), frappe.PermissionError)
+    scope = hotel_core.resolve_employee_scope(user)
+    if isinstance(scope, list) and row.get("employee") not in scope:
+        frappe.throw(_("This request is outside your scope"), frappe.PermissionError)
+    if not is_admin and row.get(approver_field) == "Administrator":
+        frappe.throw(_("This request is reserved for the Administrator"), frappe.PermissionError)
+
+
 @frappe.whitelist()
 def approve_leave(leave_application_name):
     if hotel_core.has_hotel_core():
+        _require_approval_rights("Leave Application", leave_application_name, "leave_approver")
         return _ok(hotel_core.call(HC + "approve_leave", leave_application_name=leave_application_name))
     return _err("Approvals require tb_hotel_core on this bench")
 
@@ -563,6 +600,7 @@ def approve_leave(leave_application_name):
 @frappe.whitelist()
 def reject_leave(leave_application_name, reason=None):
     if hotel_core.has_hotel_core():
+        _require_approval_rights("Leave Application", leave_application_name, "leave_approver")
         return _ok(hotel_core.call(HC + "reject_leave", leave_application_name=leave_application_name, reason=reason))
     return _err("Approvals require tb_hotel_core on this bench")
 
@@ -570,6 +608,7 @@ def reject_leave(leave_application_name, reason=None):
 @frappe.whitelist()
 def approve_expense(expense_claim_name):
     if hotel_core.has_hotel_core():
+        _require_approval_rights("Expense Claim", expense_claim_name, "expense_approver")
         return _ok(hotel_core.call(HC + "approve_expense_claim", expense_claim_name=expense_claim_name))
     return _err("Approvals require tb_hotel_core on this bench")
 
@@ -577,6 +616,7 @@ def approve_expense(expense_claim_name):
 @frappe.whitelist()
 def reject_expense(expense_claim_name, reason=None):
     if hotel_core.has_hotel_core():
+        _require_approval_rights("Expense Claim", expense_claim_name, "expense_approver")
         return _ok(hotel_core.call(HC + "reject_expense_claim", expense_claim_name=expense_claim_name, reason=reason))
     return _err("Approvals require tb_hotel_core on this bench")
 
@@ -584,6 +624,7 @@ def reject_expense(expense_claim_name, reason=None):
 @frappe.whitelist()
 def approve_shift(shift_request_name):
     if hotel_core.has_hotel_core():
+        _require_approval_rights("Shift Request", shift_request_name, "approver")
         return _ok(hotel_core.call(HC + "approve_shift_request", shift_request_name=shift_request_name))
     return _err("Approvals require tb_hotel_core on this bench")
 
@@ -591,6 +632,7 @@ def approve_shift(shift_request_name):
 @frappe.whitelist()
 def reject_shift(shift_request_name, reason=None):
     if hotel_core.has_hotel_core():
+        _require_approval_rights("Shift Request", shift_request_name, "approver")
         return _ok(hotel_core.call(HC + "reject_shift_request", shift_request_name=shift_request_name, reason=reason))
     return _err("Approvals require tb_hotel_core on this bench")
 
@@ -598,6 +640,7 @@ def reject_shift(shift_request_name, reason=None):
 @frappe.whitelist()
 def approve_attendance(request_name):
     if hotel_core.has_hotel_core():
+        _require_approval_rights("Attendance Request", request_name, "approver")
         return _ok(hotel_core.call(HC + "approve_attendance_request", request_name=request_name))
     return _err("Approvals require tb_hotel_core on this bench")
 
@@ -605,6 +648,7 @@ def approve_attendance(request_name):
 @frappe.whitelist()
 def reject_attendance(request_name):
     if hotel_core.has_hotel_core():
+        _require_approval_rights("Attendance Request", request_name, "approver")
         return _ok(hotel_core.call(HC + "reject_attendance_request", request_name=request_name))
     return _err("Approvals require tb_hotel_core on this bench")
 
