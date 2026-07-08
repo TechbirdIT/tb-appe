@@ -35,6 +35,11 @@ ASSIGNMENT_FIELDS = [
 ROSTER_MAX_DAYS = 62
 
 
+def _time_str(value):
+    """Shift time -> string; a midnight timedelta(0) is falsy but real."""
+    return "" if value is None else str(value)
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -65,8 +70,8 @@ def _shift_type_map(names):
     )
     return {
         r["name"]: {
-            "start_time": str(r.get("start_time") or ""),
-            "end_time": str(r.get("end_time") or ""),
+            "start_time": _time_str(r.get("start_time")),
+            "end_time": _time_str(r.get("end_time")),
             "color": r.get("color"),
         }
         for r in rows
@@ -257,8 +262,8 @@ def shift_types():
         ignore_permissions=True,
     )
     for r in rows:
-        r["start_time"] = str(r.get("start_time") or "")
-        r["end_time"] = str(r.get("end_time") or "")
+        r["start_time"] = _time_str(r.get("start_time"))
+        r["end_time"] = _time_str(r.get("end_time"))
     return _ok(rows)
 
 
