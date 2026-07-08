@@ -884,13 +884,15 @@ def employee_checkin_status():
         return
 
 
-def _wifi_checkin_block():
-    """Server-side office-Wi-Fi geofence for check-in.
+def _wifi_checkin_block(log_type: str):
+    """Server-side office-Wi-Fi geofence for check-in/check-out.
 
-    Returns an error message when the check-in must be rejected, else None.
+    Returns an error message when the punch must be rejected, else None.
     The app also blocks this at the UI, but enforcing here means a patched
     client can't bypass it. Fail-closed: a missing/non-matching BSSID is
-    rejected when the company has configured any access points.
+    rejected when the company has configured any access points, and an
+    internal error resolving the allowlist also rejects (a broken policy
+    lookup must not silently disable the geofence).
     """
     try:
         from tb_appe.api.rbac import allowed_wifi_bssids
@@ -901,23 +903,37 @@ def _wifi_checkin_block():
         allowed = allowed_wifi_bssids(company)
         if not allowed:
             return None  # geofence not configured -> unrestricted
-        bssid = (frappe.form_dict.get("bssid") or "").strip().lower()
-        if bssid and bssid in allowed:
-            return None
-        return "You must be connected to the company Wi-Fi to check in."
+        if log_type == "OUT" and not frappe.db.get_single_value(
+                "Appe Settings", "enforce_wifi_on_checkout"):
+            return None  # check-out enforcement is opt-in
     except Exception:
-        return None  # never block check-in on an internal error
+        frappe.log_error("Wi-Fi geofence: allowlist lookup failed", frappe.get_traceback())
+        return "Could not verify your Wi-Fi network. Please try again or contact HR."
+    bssid = (frappe.form_dict.get("bssid") or "").strip().lower()
+    if bssid and bssid in allowed:
+        return None
+    action = "check in" if log_type == "IN" else "check out"
+    return f"You must be connected to the company Wi-Fi to {action}."
+
+
+def _float_or_none(value):
+    try:
+        return float(value) if value not in (None, "") else None
+    except (TypeError, ValueError):
+        return None
 
 
 @frappe.whitelist()
 def employee_checkin():
-    if (frappe.form_dict.get("log_type") or "").upper() == "IN":
-        blocked = _wifi_checkin_block()
-        if blocked:
-            frappe.response.message = {"status": False, "message": blocked}
-            return
+    log_type = (frappe.form_dict.get("log_type") or "").upper()
+    if log_type not in ("IN", "OUT"):
+        frappe.response.message = {"status": False, "message": "Invalid log type."}
+        return
+    blocked = _wifi_checkin_block(log_type)
+    if blocked:
+        frappe.response.message = {"status": False, "message": blocked}
+        return
     try:
-        frappe.log_error('employee_checkin',frappe.form_dict)
         erpnext_exists = get_apps()
         employee = frappe.get_doc("Employee" if erpnext_exists else "Appe Employee",{"user_id":frappe.session.user})
         newdoc= frappe.get_doc({'doctype': 'Employee Checkin' if erpnext_exists else 'Appe Check-in',
@@ -925,10 +941,10 @@ def employee_checkin():
             'user':frappe.session.user,
             'time':frappe.utils.now_datetime(),
             'device_ip':'',
-            'log_type':frappe.form_dict.log_type,
+            'log_type':log_type,
             'latlong':frappe.form_dict.latlong,
-            "latitude": frappe.form_dict.latitude or "",
-            "longitude": frappe.form_dict.longitude or "",
+            "latitude": _float_or_none(frappe.form_dict.latitude),
+            "longitude": _float_or_none(frappe.form_dict.longitude),
         }).insert()
         frappe.db.commit()
         frappe.response.message={
@@ -938,10 +954,14 @@ def employee_checkin():
         }
         return
     except Exception as e:
-        # frappe.log_error("employee checkin error",f"{e}")
+        # Surface validation errors (e.g. HRMS CheckinRadiusExceededError when
+        # geolocation tracking is on) as a clean, readable rejection.
+        frappe.db.rollback()
+        if not isinstance(e, frappe.ValidationError):
+            frappe.log_error("employee_checkin failed", frappe.get_traceback())
         frappe.response.message={
-            'status':True,
-            'message':f'{e}'
+            'status':False,
+            'message':frappe.utils.strip_html(str(e) or 'Check-in failed'),
         }
         return
 

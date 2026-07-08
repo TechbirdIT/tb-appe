@@ -519,7 +519,6 @@ def _push_announcement(users, title, content):
         frappe.db.rollback()
         frappe.log_error("Announcement push failed", "tb_appe.announce")
         return False
-        return False
 
 
 @frappe.whitelist()

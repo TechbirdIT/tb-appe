@@ -10,6 +10,7 @@
   "enable_checkin_with_faceid",
   "checkin_wifi_section",
   "allowed_wifi",
+  "enforce_wifi_on_checkout",
   "enable_live_location_tracking",
   "enable_home_tabs",
   "home_screen_header_icon",
@@ -155,6 +156,14 @@
    "label": "Allowed Networks",
    "options": "Appe Wifi Network",
    "description": "Employees may only check in while connected to one of these access points (matched by BSSID). Leave empty to disable."
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.allowed_wifi && doc.allowed_wifi.length",
+   "description": "Also require the company Wi-Fi to check out. Off by default so employees can clock out when away from the premises.",
+   "fieldname": "enforce_wifi_on_checkout",
+   "fieldtype": "Check",
+   "label": "Enforce Wi-Fi on Check-out"
   }
  ],
  "grid_page_length": 50,
