@@ -132,6 +132,16 @@ doctype_js = {"Notification" : "public/js/notification.js"}
 # 	"Event": "frappe.desk.doctype.event.event.has_permission",
 # }
 
+# HRMS grants Employee read on ALL Employee Checkins; narrow every list query
+# and doc read to the caller's supervisory scope (HR/admin stay unrestricted).
+permission_query_conditions = {
+	"Employee Checkin": "tb_appe.api.scoped_permissions.employee_checkin_query",
+}
+
+has_permission = {
+	"Employee Checkin": "tb_appe.api.scoped_permissions.employee_checkin_has_permission",
+}
+
 # DocType Class
 # ---------------
 # Override standard doctype classes
