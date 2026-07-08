@@ -258,10 +258,6 @@ def get_me():
             # Public OneSignal App ID so the client can initialise push (the
             # REST key stays server-side). Empty when push isn't configured.
             "onesignal_app_id": frappe.db.get_single_value("Appe Settings", "onesignal_app_id") or "",
-            # Office Wi-Fi geofence for check-in: the access points (BSSIDs) the
-            # employee's company allows. When non-empty, the app blocks check-in
-            # unless the device is on one of them (and the server enforces it too).
-            "wifi_check_in": wifi_check_in_policy(ctx["employee"]),
         },
     }
 
@@ -271,40 +267,3 @@ def _location_tracking_enabled() -> bool:
         return bool(frappe.db.get_single_value("Appe Settings", "enable_live_location_tracking"))
     except Exception:
         return False
-
-
-def _employee_company(emp) -> str | None:
-    if isinstance(emp, dict):
-        return emp.get("company")
-    return getattr(emp, "company", None)
-
-
-def allowed_wifi_bssids(company: str | None) -> list[str]:
-    """Normalised BSSIDs allowed for ``company`` (plus any company-agnostic rows).
-
-    Central helper shared by ``get_me`` and the check-in enforcement so the
-    allowlist logic lives in one place.
-    """
-    try:
-        rows = frappe.get_all(
-            "Appe Wifi Network",
-            filters={"parenttype": "Appe Settings"},
-            fields=["company", "bssid"],
-        )
-    except Exception:
-        return []
-    out = []
-    for r in rows:
-        b = (r.get("bssid") or "").strip().lower()
-        if not b:
-            continue
-        rc = r.get("company")
-        if not rc or not company or rc == company:
-            out.append(b)
-    return sorted(set(out))
-
-
-def wifi_check_in_policy(emp) -> dict:
-    """`{enabled, bssids}` describing the check-in Wi-Fi geofence for the user."""
-    bssids = allowed_wifi_bssids(_employee_company(emp))
-    return {"enabled": bool(bssids), "bssids": bssids}

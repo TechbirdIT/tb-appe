@@ -884,38 +884,8 @@ def employee_checkin_status():
         return
 
 
-def _wifi_checkin_block():
-    """Server-side office-Wi-Fi geofence for check-in.
-
-    Returns an error message when the check-in must be rejected, else None.
-    The app also blocks this at the UI, but enforcing here means a patched
-    client can't bypass it. Fail-closed: a missing/non-matching BSSID is
-    rejected when the company has configured any access points.
-    """
-    try:
-        from tb_appe.api.rbac import allowed_wifi_bssids
-        erpnext_exists = get_apps()
-        company = frappe.db.get_value(
-            "Employee" if erpnext_exists else "Appe Employee",
-            {"user_id": frappe.session.user}, "company")
-        allowed = allowed_wifi_bssids(company)
-        if not allowed:
-            return None  # geofence not configured -> unrestricted
-        bssid = (frappe.form_dict.get("bssid") or "").strip().lower()
-        if bssid and bssid in allowed:
-            return None
-        return "You must be connected to the company Wi-Fi to check in."
-    except Exception:
-        return None  # never block check-in on an internal error
-
-
 @frappe.whitelist()
 def employee_checkin():
-    if (frappe.form_dict.get("log_type") or "").upper() == "IN":
-        blocked = _wifi_checkin_block()
-        if blocked:
-            frappe.response.message = {"status": False, "message": blocked}
-            return
     try:
         frappe.log_error('employee_checkin',frappe.form_dict)
         erpnext_exists = get_apps()
