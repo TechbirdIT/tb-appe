@@ -208,7 +208,8 @@ def my_expenses(status=None, limit=50):
         frappe.get_all(
             "Expense Claim",
             filters={"employee": emp, "docstatus": ["!=", 2]},
-            fields=["name", "posting_date", "total_claimed_amount", "total_sanctioned_amount", "approval_status"],
+            fields=["name", "posting_date", "total_claimed_amount", "total_sanctioned_amount",
+                    "approval_status", "docstatus", "remark"],
             order_by="posting_date desc",
             limit=limit,
             ignore_permissions=True,
@@ -218,9 +219,109 @@ def my_expenses(status=None, limit=50):
 
 @frappe.whitelist()
 def expense_types():
+    """Expense Claim Types the caller can actually FILE against.
+
+    ERPNext rejects a claim whose type has no default account for the
+    company, so offering unconfigured types gives the user a dead option
+    (this is exactly how only "Food" used to work). Only fall back to the
+    full list when nothing is configured for the company at all."""
+    emp = _require_employee()
+    company = (emp and frappe.db.get_value("Employee", emp, "company")) or \
+        frappe.defaults.get_global_default("company")
+    usable = sorted(set(
+        frappe.get_all(
+            "Expense Claim Account",
+            filters={"parenttype": "Expense Claim Type", "company": company},
+            pluck="parent",
+            ignore_permissions=True,
+        )
+    )) if company else []
+    if usable:
+        return _ok(usable)
     if hotel_core.has_hotel_core():
         return _ok(hotel_core.call(HC + "get_expense_claim_types"))
     return _ok(frappe.get_all("Expense Claim Type", pluck="name"))
+
+
+@frappe.whitelist()
+def expense_detail(name):
+    """One of the caller's OWN expense claims, with its expense lines (used to
+    prefill the edit form). Session-pinned like every my_* read."""
+    emp = _require_employee()
+    if not emp:
+        return _err("No employee record found for your user account")
+    doc = frappe.get_doc("Expense Claim", name)
+    if doc.employee != emp:
+        frappe.throw(_("You can only view your own expense claims"), frappe.PermissionError)
+    return _ok({
+        "name": doc.name,
+        "posting_date": str(doc.posting_date or ""),
+        "approval_status": doc.approval_status,
+        "docstatus": doc.docstatus,
+        "remark": doc.remark,
+        "total_claimed_amount": doc.total_claimed_amount,
+        "expenses": [
+            {
+                "expense_date": str(r.expense_date or ""),
+                "expense_type": r.expense_type,
+                "description": r.description,
+                "amount": r.amount,
+            }
+            for r in doc.expenses
+        ],
+    })
+
+
+@frappe.whitelist(methods=["POST"])
+def update_expense(name, expenses=None, posting_date=None, remark=None):
+    """Edit the caller's OWN expense claim while it is still a Draft
+    (docstatus 0, not yet actioned). `expenses` replaces the claim's lines —
+    same row shape as create_expense. Validation (and the Expense Approval
+    workflow's Draft/allow-edit rule, which permits the Employee) still runs."""
+    emp = _require_employee()
+    if not emp:
+        return _err("No employee record found for your user account")
+    doc = frappe.get_doc("Expense Claim", name)
+    if doc.employee != emp:
+        frappe.throw(_("You can only edit your own expense claims"), frappe.PermissionError)
+    if doc.docstatus != 0 or (doc.approval_status or "Draft") != "Draft":
+        return _err("Only draft expense claims can be edited")
+    if isinstance(expenses, str):
+        expenses = json.loads(expenses)
+    try:
+        if posting_date:
+            doc.posting_date = posting_date
+        if remark is not None:
+            doc.remark = remark
+        if expenses:
+            cost_center = frappe.db.get_value("Company", doc.company, "cost_center") or ""
+            doc.set("expenses", [])
+            for exp in expenses:
+                row = doc.append("expenses", {})
+                row.expense_date = exp.get("expense_date") or doc.posting_date
+                row.expense_type = exp.get("expense_type")
+                row.description = exp.get("description", "")
+                amount = frappe.utils.flt(exp.get("amount", 0))
+                row.amount = amount
+                row.sanctioned_amount = amount
+                row.exchange_rate = 1.0
+                row.base_amount = amount
+                row.base_sanctioned_amount = amount
+                if cost_center:
+                    row.cost_center = cost_center
+        doc.flags.ignore_permissions = True
+        doc.save()
+        frappe.db.commit()
+        return _ok({
+            "name": doc.name,
+            "total_claimed_amount": doc.total_claimed_amount,
+            "approval_status": doc.approval_status,
+        })
+    except frappe.PermissionError:
+        raise
+    except frappe.ValidationError as e:
+        frappe.db.rollback()
+        return _err(frappe.utils.strip_html(str(e) or "Could not save the claim"))
 
 
 @frappe.whitelist()
